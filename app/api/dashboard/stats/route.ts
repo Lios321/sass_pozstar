@@ -220,7 +220,7 @@ export async function GET(request: NextRequest) {
       ? ((currentPeriodOrders - previousPeriodOrders) / previousPeriodOrders) * 100 
       : 0
 
-    return NextResponse.json({
+    const body = {
       totalClients,
       totalTechnicians,
       totalServiceOrders,
@@ -234,6 +234,15 @@ export async function GET(request: NextRequest) {
       })),
       ordersByMonth: ordersByMonthNormalized,
       technicianPerformance: technicianPerformanceWithNames
+    }
+
+    // Curto cache privado para aliviar carga do banco (1 minuto)
+    return new NextResponse(JSON.stringify(body), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'private, max-age=60',
+      },
     })
 
   } catch (error) {
