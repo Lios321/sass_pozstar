@@ -1,0 +1,4 @@
+ Credenciais de acesso:
+   Admin: admin@pozstar.com / 123456
+   Técnico 1: joao@pozstar.com / 123456
+   Técnico 2: maria@pozstar.com / 123456
