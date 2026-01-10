@@ -1,0 +1,372 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Tema Claro - Paleta Azul Claro Moderna */
+    --background: 0 0% 100%;
+    --foreground: 215 25% 27%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 27%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 27%;
+    
+    /* Azul Claro como Cor Principal */
+    --primary: 200 100% 70%;
+    --primary-light: 200 100% 80%;
+    --primary-dark: 200 100% 60%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Tons Secundários Escuros */
+    --secondary: 210 20% 98%;
+    --secondary-foreground: 215 25% 25%;
+    --muted: 210 22% 98%;
+    --muted-foreground: 215 14% 40%;
+    --accent: 200 100% 97%;
+    --accent-foreground: 215 25% 27%;
+    
+    /* Cores de Feedback */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    
+    /* Bordas e Inputs */
+    --border: 215 16% 92%;
+    --input: 215 16% 92%;
+    --ring: 200 100% 70%;
+    
+    /* Gradientes */
+    --gradient-primary: linear-gradient(135deg, hsl(200 100% 70%) 0%, hsl(200 100% 60%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(210 20% 98%) 0%, hsl(0 0% 100%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(200 100% 98%) 100%);
+    
+    /* Charts com Azul Claro */
+    --chart-1: 200 100% 70%;
+    --chart-2: 142 76% 36%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 271 81% 56%;
+    --chart-5: 0 84% 60%;
+    
+    /* Sombras e Raios */
+    --radius: 0.75rem;
+    --shadow-light: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-medium: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-heavy: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    
+    /* Transições */
+    --transition-fast: 0.15s ease-in-out;
+    --transition-normal: 0.3s ease-in-out;
+    --transition-slow: 0.5s ease-in-out;
+  }
+
+  .dark {
+    /* Tema Escuro - Paleta Azul Claro Moderna */
+    --background: 215 28% 9%;
+    --foreground: 210 20% 95%;
+    --card: 215 28% 11%;
+    --card-foreground: 210 20% 95%;
+    --popover: 215 28% 11%;
+    --popover-foreground: 210 20% 95%;
+    
+    /* Azul Claro como Cor Principal */
+    --primary: 200 100% 75%;
+    --primary-light: 200 100% 85%;
+    --primary-dark: 200 100% 65%;
+    --primary-foreground: 215 28% 9%;
+    
+    /* Tons Secundários Escuros */
+    --secondary: 215 25% 16%;
+    --secondary-foreground: 210 20% 95%;
+    --muted: 215 25% 16%;
+    --muted-foreground: 215 13% 65%;
+    --accent: 215 25% 16%;
+    --accent-foreground: 210 20% 95%;
+    
+    /* Cores de Feedback */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    
+    /* Bordas e Inputs */
+    --border: 215 25% 20%;
+    --input: 215 25% 20%;
+    --ring: 200 100% 75%;
+    
+    /* Gradientes Dark */
+    --gradient-primary: linear-gradient(135deg, hsl(200 100% 75%) 0%, hsl(200 100% 65%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(215 25% 16%) 0%, hsl(215 25% 12%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(215 28% 11%) 0%, hsl(215 28% 13%) 100%);
+    
+    /* Charts com Azul Claro */
+    --chart-1: 200 100% 75%;
+    --chart-2: 142 76% 45%;
+    --chart-3: 38 92% 60%;
+    --chart-4: 271 81% 65%;
+    --chart-5: 0 84% 65%;
+    
+    /* Sombras Dark */
+    --shadow-light: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    --shadow-medium: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+    --shadow-heavy: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  /* Gradientes Utilitários */
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+  
+  .gradient-secondary {
+    background: var(--gradient-secondary);
+  }
+  
+  .gradient-card {
+    background: var(--gradient-card);
+  }
+  
+  /* Sombras Utilitárias */
+  .shadow-light {
+    box-shadow: var(--shadow-light);
+  }
+  
+  .shadow-medium {
+    box-shadow: var(--shadow-medium);
+  }
+  
+  .shadow-heavy {
+    box-shadow: var(--shadow-heavy);
+  }
+  
+  /* Superfícies padronizadas para mensagens, tooltips e menus */
+  .ui-tooltip {
+    @apply rounded-lg border px-3 py-2;
+    box-shadow: var(--shadow-medium);
+    background-color: hsl(var(--accent));
+    color: hsl(var(--foreground));
+  }
+  
+  .ui-menu {
+    @apply rounded-xl border p-1;
+    box-shadow: var(--shadow-medium);
+    background-color: hsl(var(--card));
+  }
+  
+  .ui-menu-item {
+    @apply flex items-center gap-2 px-3 py-2 rounded-lg transition;
+  }
+  .ui-menu-item:hover {
+    background-color: color-mix(in oklab, hsl(var(--accent)) 50%, transparent);
+  }
+  
+  .ui-toast {
+    @apply rounded-lg border;
+    box-shadow: var(--shadow-medium);
+    background-color: hsl(var(--accent));
+    color: hsl(var(--foreground));
+  }
+  
+  /* Animações de Hover */
+  .hover-lift {
+    transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+  }
+  
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+  }
+  
+  .hover-scale {
+    transition: transform var(--transition-fast);
+  }
+  
+  .hover-scale:hover {
+    transform: scale(1.02);
+  }
+  
+  /* Botões com Gradiente */
+  .btn-gradient {
+    background: var(--gradient-primary);
+    border: none;
+    color: white;
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .btn-gradient::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left var(--transition-slow);
+  }
+  
+  .btn-gradient:hover::before {
+    left: 100%;
+  }
+  
+  .btn-gradient:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-medium);
+  }
+  
+  /* Cards Modernos */
+  .card-modern {
+    background: var(--gradient-card);
+    border-radius: var(--radius);
+    border: 1px solid hsl(var(--border));
+    transition: all var(--transition-normal);
+  }
+  
+  .card-modern:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-heavy);
+  }
+  
+  /* Animações de Entrada */
+  .fade-in {
+    animation: fadeIn 0.6s ease-out;
+  }
+  
+  .slide-up {
+    animation: slideUp 0.6s ease-out;
+  }
+  
+  .slide-in-left {
+    animation: slideInLeft 0.6s ease-out;
+  }
+  
+  .slide-in-right {
+    animation: slideInRight 0.6s ease-out;
+  }
+  
+  /* Pulse para Loading */
+  .pulse-primary {
+    animation: pulsePrimary 2s infinite;
+  }
+}
+
+@layer utilities {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .overflow-x-soft {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .focus-visible-ring {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+  .tap-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulsePrimary {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Scrollbar Personalizada */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary-dark));
+}

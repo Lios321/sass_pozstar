@@ -1,0 +1,224 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  serviceOrders ServiceOrder[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Client {
+  id          String  @id @default(cuid())
+  name        String
+  email       String  @unique
+  phone       String
+  address     String?
+  city        String?
+  state       String?
+  zipCode     String?
+  complement  String?
+  country     String? @default("Brasil")
+  latitude    Float?
+  longitude   Float?
+  document    String? // CPF/CNPJ
+  documentType String? // CPF ou CNPJ
+  clientType  String? // Tipo de Cliente
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  serviceOrders ServiceOrder[]
+  notifications Notification[]
+  openingQueueItems OpeningQueueItem[]
+
+  @@map("clients")
+}
+
+model Technician {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  phone          String
+  specializations String? // JSON string com especializações
+  isAvailable    Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relacionamentos
+  serviceOrders ServiceOrder[]
+
+  @@map("technicians")
+}
+
+model ServiceOrder {
+  id                String            @id @default(cuid())
+  orderNumber       String            @unique
+  clientId          String
+  technicianId      String?
+  equipmentType     String
+  brand             String
+  model             String
+  serialNumber      String?
+  status            ServiceOrderStatus @default(SEM_VER)
+  reportedDefect    String
+  receivedAccessories String?
+  budgetNote        String?
+  technicalExplanation String?
+  price             Float?
+  cost              Float?
+  budgetItems       Json?
+  
+  // Datas
+  arrivalDate       DateTime?
+  openingDate       DateTime          @default(now())
+  completionDate    DateTime?
+  deliveryDate      DateTime?
+  paymentDate       DateTime?
+  
+  // Campos de comprovante
+  receiptGenerated  Boolean           @default(false)
+  receiptGeneratedAt DateTime?
+  receiptPath       String?
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relacionamentos
+  client            Client            @relation(fields: [clientId], references: [id])
+  technician        Technician?       @relation(fields: [technicianId], references: [id])
+  createdBy         User              @relation(fields: [createdById], references: [id])
+  createdById       String
+  notifications     Notification[]
+  receiptDeliveries ReceiptDelivery[]
+
+  @@map("service_orders")
+}
+
+model Notification {
+  id          String            @id @default(cuid())
+  title       String
+  message     String
+  type        NotificationType  @default(INFO)
+  isRead      Boolean           @default(false)
+  
+  // Relacionamentos
+  userId      String?
+  clientId    String?
+  serviceOrderId String?
+  
+  user        User?             @relation(fields: [userId], references: [id])
+  client      Client?           @relation(fields: [clientId], references: [id])
+  serviceOrder ServiceOrder?    @relation(fields: [serviceOrderId], references: [id])
+  
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("notifications")
+}
+
+model ReceiptDelivery {
+  id              String                @id @default(cuid())
+  serviceOrderId  String
+  deliveryMethod  ReceiptDeliveryMethod
+  status          ReceiptDeliveryStatus @default(PENDING)
+  recipientEmail  String?
+  recipientPhone  String?
+  errorMessage    String?
+  sentAt          DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  // Relacionamentos
+  serviceOrder    ServiceOrder          @relation(fields: [serviceOrderId], references: [id])
+
+  @@map("receipt_deliveries")
+}
+
+enum UserRole {
+  ADMIN
+  TECHNICIAN
+  CLIENT
+}
+
+enum ServiceOrderStatus {
+  SEM_VER
+  ORCAMENTAR
+  APROVADO
+  ESPERANDO_PECAS
+  COMPRADO
+  MELHORAR
+  TERMINADO
+  SEM_PROBLEMA
+  SEM_CONSERTO
+  DEVOLVER
+  DEVOLVIDO
+  DESCARTE
+  VENDIDO
+  ESPERANDO_CLIENTE
+}
+
+enum NotificationType {
+  INFO         // Informação
+  SUCCESS      // Sucesso
+  WARNING      // Aviso
+  ERROR        // Erro
+  STATUS_UPDATE // Atualização de status
+}
+
+enum ReceiptDeliveryMethod {
+  EMAIL
+  WHATSAPP
+}
+
+  enum ReceiptDeliveryStatus {
+    PENDING
+    SENT
+    FAILED
+  }
+
+  // Fila de abertura: equipamentos recebidos ainda sem OS aberta
+  model OpeningQueueItem {
+    id              String   @id @default(cuid())
+    clientId        String?
+    clientName      String
+    contactPhone    String
+    equipmentType   String
+    equipmentDesc   String?
+    arrivalDate     DateTime @default(now())
+    positionIndex   Int      @default(0)
+    status          QueueStatus @default(PENDING)
+    notes           String?
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    // Relacionamentos
+    client          Client?  @relation(fields: [clientId], references: [id])
+
+    @@map("opening_queue_items")
+    @@index([status, arrivalDate], map: "idx_queue_status_arrival")
+  }
+
+  enum QueueStatus {
+    PENDING
+    OPENED
+  }
+
