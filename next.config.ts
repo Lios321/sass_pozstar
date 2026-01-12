@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   eslint: {
     // Consider enabling this in CI to fail builds on lint issues
     ignoreDuringBuilds: true,
@@ -19,7 +20,7 @@ const nextConfig: NextConfig = {
     const isDev = process.env.NODE_ENV !== "production";
     const cspProd =
       "default-src 'self'; " +
-      "script-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
       "style-src 'self' 'unsafe-inline'; " +
       "img-src 'self' blob: data:; " +
       "font-src 'self' data:; " +

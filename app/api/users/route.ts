@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
 import { hashPassword } from '@/lib/auth'
+import { Prisma } from '@prisma/client'
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions)
@@ -15,11 +16,11 @@ export async function GET(request: Request) {
   const page = parseInt(searchParams.get('page') || '1', 10)
   const pageSize = parseInt(searchParams.get('pageSize') || '10', 10)
 
-  const where = q
+  const where: Prisma.UserWhereInput = q
     ? {
         OR: [
-          { name: { contains: q, mode: 'insensitive' } },
-          { email: { contains: q, mode: 'insensitive' } },
+          { name: { contains: q } },
+          { email: { contains: q } },
         ],
       }
     : {}
@@ -53,10 +54,16 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { name, email, password, role } = body || {}
-  if (!name || !email || !password || !role) {
-    return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+  const parsed = createUserSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Dados inválidos', details: parsed.error.issues },
+      { status: 400 }
+    )
   }
+
+  const { name, email, password, role } = parsed.data
 
   try {
     const hashed = await hashPassword(password)

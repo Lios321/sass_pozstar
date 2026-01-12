@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient, NotificationType } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
+import { NotificationType } from '@prisma/client'
 import { z } from 'zod'
-
-const prisma = new PrismaClient()
 
 const createNotificationSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),

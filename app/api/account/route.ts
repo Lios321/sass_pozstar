@@ -6,10 +6,10 @@ import { hashPassword } from '@/lib/auth'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
-  if (!session || !session.user?.id) {
+  if (!session || !session.user.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  const userId = (session.user as any).id as string
+  const userId = session.user.id
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -25,13 +25,22 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   const session = await getServerSession(authOptions)
-  if (!session || !session.user?.id) {
+  if (!session || !session.user.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  const userId = (session.user as any).id as string
+  const userId = session.user.id
 
   const body = await request.json()
-  const { name, email, password } = body || {}
+  const parsed = updateProfileSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Dados inválidos', details: parsed.error.issues },
+      { status: 400 }
+    )
+  }
+
+  const { name, email, password } = parsed.data
   const data: any = {}
   if (name) data.name = name
   if (email) data.email = email

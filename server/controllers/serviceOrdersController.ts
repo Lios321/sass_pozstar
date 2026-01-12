@@ -17,6 +17,7 @@ export const serviceOrdersController = {
    * Lista ordens paginadas conforme filtros e ordenação
    */
   async list(request: NextRequest) {
+    await requireAuth(request as unknown as Request)
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')

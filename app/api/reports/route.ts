@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ServiceOrderStatus } from '@prisma/client'
 import { z } from 'zod'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 
 // Interfaces para tipos de dados
 interface ServiceOrderWhereClause {
@@ -51,6 +53,11 @@ const reportFiltersSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     
     // Validar parâmetros

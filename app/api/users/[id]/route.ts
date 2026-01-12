@@ -14,7 +14,16 @@ export async function PUT(
   }
 
   const body = await request.json()
-  const { name, email, role, password } = body || {}
+  const parsed = updateUserSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Dados inválidos', details: parsed.error.issues },
+      { status: 400 }
+    )
+  }
+
+  const { name, email, role, password } = parsed.data
   const data: any = {}
   if (name) data.name = name
   if (email) data.email = email

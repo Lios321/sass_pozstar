@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getUserFromToken, getTokenFromRequest } from '@/lib/auth'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
@@ -11,8 +10,6 @@ import { EmailService } from '@/lib/email-service'
 import { inviteTemplate } from '@/lib/email-templates'
 
 // Interfaces para tipos de dados
-// Removido TechnicianWhereClause customizado; vamos usar o tipo oficial do Prisma
-
 interface TechnicianFromDB {
   id: string;
   name: string;

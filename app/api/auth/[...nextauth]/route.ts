@@ -3,6 +3,9 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { prisma } from '@/lib/prisma'
 import { verifyPassword } from '@/lib/auth'
 
+const useSecureCookies = (process.env.NEXTAUTH_URL || '').startsWith('https')
+const cookiePrefix = useSecureCookies ? '__Secure-' : ''
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -66,15 +69,12 @@ export const authOptions: NextAuthOptions = {
   },
   cookies: {
     sessionToken: {
-      name: process.env.NODE_ENV === 'production'
-        ? '__Secure-next-auth.session-token'
-        : 'next-auth.session-token',
+      name: `${cookiePrefix}next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: (process.env.NEXTAUTH_URL || '').startsWith('https') ? 'none' : 'lax',
+        sameSite: 'lax',
         path: '/',
-        secure: (process.env.NEXTAUTH_URL || '').startsWith('https'),
-        // Sem expires/maxAge: cookie de sessão (some ao fechar o navegador)
+        secure: useSecureCookies,
       }
     }
   },
@@ -85,14 +85,14 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
-        token.role = user.role
+        token.role = (user as any).role
       }
       return token
     },
     async session({ session, token }) {
       if (token && session.user) {
-        session.user.id = token.id as string
-        session.user.role = token.role as string
+        (session.user as any).id = token.id as string
+        (session.user as any).role = token.role as string
       }
       return session
     },

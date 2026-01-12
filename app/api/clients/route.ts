@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getUserFromToken, getTokenFromRequest } from '@/lib/auth'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
-import { sendTemplate } from '@/lib/whatsapp'
-import { buildTemplatePayload } from '@/lib/whatsapp-templates'
-import { EmailService } from '@/lib/email-service'
 
 const clientSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
@@ -124,25 +120,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-  const client = await prisma.client.create({
-    data: {
-      name,
-      email,
-      phone,
-      address,
-      document,
-      city,
-      state,
-      zipCode,
-      complement,
-      country,
-      latitude,
-      longitude,
-      clientType
-    }
-  })
-
-    // DESABILITADO TEMPORARIAMENTE: não enviar mensagens WhatsApp nem Email ao criar cliente
+    const client = await prisma.client.create({
+      data: {
+        name,
+        email,
+        phone,
+        address,
+        document,
+        city,
+        state,
+        zipCode,
+        complement,
+        country,
+        latitude,
+        longitude,
+        clientType
+      }
+    })
 
     return NextResponse.json({
       message: 'Cliente criado com sucesso',

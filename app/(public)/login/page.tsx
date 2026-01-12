@@ -53,26 +53,32 @@ function LoginInner() {
     setError('')
 
     try {
+      console.log('Attempting sign in...', { email, targetUrl })
       const result = await signIn('credentials', {
         email,
         password,
         redirect: false,
         callbackUrl: targetUrl,
       })
+      console.log('Sign in result:', result)
 
       if (!result || result.error) {
+        console.error('Sign in failed:', result?.error)
         const friendly = result?.error === 'CredentialsSignin'
           ? 'Email ou senha inválidos'
           : 'Falha ao fazer login. Tente novamente.'
         setError(friendly)
         return
       }
+      
+      console.log('Sign in success, redirecting to:', targetUrl)
       if (typeof window !== 'undefined') {
         window.location.assign(targetUrl)
       } else {
         router.replace(targetUrl)
       }
     } catch (error) {
+      console.error('Sign in exception:', error)
       setError(error instanceof Error ? error.message : 'Erro ao fazer login')
     } finally {
       setIsLoading(false)
