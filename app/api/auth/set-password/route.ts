@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { hashPassword } from '@/lib/auth'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
+import { getRequestContext } from '@cloudflare/next-on-pages'
+
+export const runtime = 'edge'
 
 const schema = z.object({
   token: z.string().min(10),
@@ -30,17 +32,22 @@ export async function POST(request: NextRequest) {
     if (!payload || payload.purpose !== 'set_password' || !payload.email) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 400 })
     }
-    const user = await prisma.user.findUnique({ where: { email: String(payload.email) } })
+
+    const db = getRequestContext().env.DB
+    const user = await db.prepare('SELECT * FROM users WHERE email = ?').bind(String(payload.email)).first<any>()
+
     if (!user) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
     }
     const hashed = await hashPassword(password)
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { password: hashed },
-    })
+    
+    await db.prepare('UPDATE users SET password = ?, updatedAt = ? WHERE id = ?')
+      .bind(hashed, new Date().toISOString(), user.id)
+      .run()
+
     return NextResponse.json({ message: 'Senha definida com sucesso' })
-  } catch {
+  } catch (error) {
+    console.error('Erro ao definir senha:', error)
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
   }
 }

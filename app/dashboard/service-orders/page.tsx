@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ServiceOrdersTable } from '@/components/ui/service-orders-table'
 import { Plus, Edit, Trash2, Eye, Calendar, User, Wrench, FileText } from 'lucide-react'
 import { Toast } from '@/lib/toast'
-import type { ServiceOrderStatus } from '@prisma/client'
+import type { ServiceOrderStatus } from '@/lib/types'
 
 interface ServiceOrder {
   id: string;

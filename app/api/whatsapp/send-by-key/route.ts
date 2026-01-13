@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server"
-import { sendTemplate } from "@/lib/whatsapp"
 import { buildTemplatePayload } from "@/lib/whatsapp-templates"
-import { prisma } from "@/lib/prisma"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
-import { EmailService } from "@/lib/email-service"
+
+export const runtime = 'edge'
 
 export async function POST(req: Request) {
   try {
@@ -12,7 +9,7 @@ export async function POST(req: Request) {
     const to = String(body?.to || "")
     const key = String(body?.key || "")
     const params = (body?.params && typeof body.params === "object") ? body.params : {}
-    const emailInput = body?.email ? String(body.email) : ""
+    
     if (!to) {
       return NextResponse.json({ ok: false, error: "missing_to" }, { status: 400 })
     }

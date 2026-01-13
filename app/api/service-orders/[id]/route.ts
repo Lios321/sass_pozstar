@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ServiceOrderStatus, ReceiptDeliveryMethod } from '@prisma/client'
-import { NotificationService } from '@/lib/notifications'
-import { ReceiptService } from '@/lib/receipt-service'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import { sendTemplate } from '@/lib/whatsapp'
-import { buildTemplatePayload } from '@/lib/whatsapp-templates'
+import { getRequestContext } from '@cloudflare/next-on-pages'
+
+// Removed Prisma dependencies
+// import { NotificationService } from '@/lib/notifications'
+// import { ReceiptService } from '@/lib/receipt-service'
+
+export const runtime = 'edge'
+
+const ServiceOrderStatus = {
+  SEM_VER: 'SEM_VER',
+  ORCAMENTAR: 'ORCAMENTAR',
+  APROVADO: 'APROVADO',
+  ESPERANDO_PECAS: 'ESPERANDO_PECAS',
+  COMPRADO: 'COMPRADO',
+  MELHORAR: 'MELHORAR',
+  ESPERANDO_CLIENTE: 'ESPERANDO_CLIENTE',
+  DEVOLVIDO: 'DEVOLVIDO',
+  DESCARTE: 'DESCARTE',
+  TERMINADO: 'TERMINADO'
+}
 
 // Interface para dados de atualização
 interface UpdateServiceOrderData {
@@ -22,7 +36,7 @@ interface UpdateServiceOrderData {
   price?: number;
   cost?: number;
   budgetItems?: any;
-  status?: ServiceOrderStatus;
+  status?: string;
   arrivalDate?: Date | string;
   openingDate?: Date | string;
   completionDate?: Date | string;
@@ -35,7 +49,7 @@ interface UpdateServiceOrderData {
 function sanitizeBudgetItems(items: any): any {
   try {
     if (!Array.isArray(items)) return items
-    return items.map((raw) => {
+    return JSON.stringify(items.map((raw: any) => {
       const item = typeof raw === 'object' && raw !== null ? raw : {}
       const quantity = Number(item.quantity)
       const unitCost = Number(item.unitCost)
@@ -53,26 +67,14 @@ function sanitizeBudgetItems(items: any): any {
         sanitized.unitPrice = Number.isFinite(unitPrice) ? unitPrice : null
       }
 
-      if (item.hasOwnProperty('estimatedHours')) {
+      if (Object.prototype.hasOwnProperty.call(item, 'estimatedHours')) {
         sanitized.estimatedHours = Number.isFinite(estimatedHours) ? estimatedHours : 0
       }
 
-      // Preservar outros campos primitivos (evitar undefined)
-      for (const key of Object.keys(item)) {
-        if (!(key in sanitized)) {
-          const value = item[key]
-          if (value === undefined) continue
-          if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || value === null) {
-            sanitized[key] = typeof value === 'number' && !Number.isFinite(value) ? null : value
-          }
-        }
-      }
-
       return sanitized
-    })
+    }))
   } catch {
-    // Fallback para remover valores indefinidos/circulares
-    return JSON.parse(JSON.stringify(items))
+    return '[]'
   }
 }
 
@@ -90,7 +92,7 @@ const updateServiceOrderSchema = z.object({
   price: z.number().optional(),
   cost: z.number().optional(),
   budgetItems: z.any().optional(),
-  status: z.nativeEnum(ServiceOrderStatus).optional(),
+  status: z.string().optional(),
   arrivalDate: z.string().optional(),
   openingDate: z.string().optional(),
   completionDate: z.string().optional(),
@@ -98,20 +100,22 @@ const updateServiceOrderSchema = z.object({
   paymentDate: z.string().optional()
 })
 
-// GET /api/service-orders/[id] - Buscar ordem de serviço por ID
+// GET /api/service-orders/[id]
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const serviceOrder = await prisma.serviceOrder.findUnique({
-      where: { id: id },
-      include: {
-        client: true,
-        technician: true
-      }
-    })
+    const db = getRequestContext().env.DB
+
+    const serviceOrder: any = await db.prepare(`
+        SELECT so.*, c.name as clientName, t.name as technicianName 
+        FROM service_orders so
+        LEFT JOIN clients c ON so.clientId = c.id
+        LEFT JOIN technicians t ON so.technicianId = t.id
+        WHERE so.id = ?
+    `).bind(id).first()
 
     if (!serviceOrder) {
       return NextResponse.json(
@@ -120,7 +124,14 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(serviceOrder)
+    // Format output to match expected Prisma structure roughly
+    const formatted = {
+        ...serviceOrder,
+        client: serviceOrder.clientId ? { id: serviceOrder.clientId, name: serviceOrder.clientName } : null,
+        technician: serviceOrder.technicianId ? { id: serviceOrder.technicianId, name: serviceOrder.technicianName } : null
+    }
+
+    return NextResponse.json(formatted)
   } catch (error) {
     console.error('Erro ao buscar ordem de serviço:', error)
     return NextResponse.json(
@@ -130,7 +141,7 @@ export async function GET(
   }
 }
 
-// PUT /api/service-orders/[id] - Atualizar ordem de serviço
+// PUT /api/service-orders/[id]
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -138,13 +149,11 @@ export async function PUT(
   try {
     const body = await request.json()
     const validatedData = updateServiceOrderSchema.parse(body)
-
     const { id } = await params;
+    const db = getRequestContext().env.DB
 
     // Verificar se a ordem de serviço existe
-    const existingOrder = await prisma.serviceOrder.findUnique({
-      where: { id: id }
-    })
+    const existingOrder: any = await db.prepare('SELECT * FROM service_orders WHERE id = ?').bind(id).first()
 
     if (!existingOrder) {
       return NextResponse.json(
@@ -153,42 +162,26 @@ export async function PUT(
       )
     }
 
-    // Verificar se o cliente existe (se fornecido)
+    // Verificar se o cliente existe
     if (validatedData.clientId) {
-      const client = await prisma.client.findUnique({
-        where: { id: validatedData.clientId }
-      })
-
-      if (!client) {
-        return NextResponse.json(
-          { error: 'Cliente não encontrado' },
-          { status: 400 }
-        )
-      }
+      const client = await db.prepare('SELECT id FROM clients WHERE id = ?').bind(validatedData.clientId).first()
+      if (!client) return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 400 })
     }
 
-    // Verificar se o técnico existe (se fornecido)
+    // Verificar se o técnico existe
     if (validatedData.technicianId) {
-      const technician = await prisma.technician.findUnique({
-        where: { id: validatedData.technicianId }
-      })
-
-      if (!technician) {
-        return NextResponse.json(
-          { error: 'Técnico não encontrado' },
-          { status: 400 }
-        )
-      }
+      const technician = await db.prepare('SELECT id FROM technicians WHERE id = ?').bind(validatedData.technicianId).first()
+      if (!technician) return NextResponse.json({ error: 'Técnico não encontrado' }, { status: 400 })
     }
 
-    // Regra: restrições de transição quando ordem está SEM_VER
+    // Regras de Status
     if (existingOrder.status === ServiceOrderStatus.SEM_VER && validatedData.status) {
       const allowedFromSemVer = [
         ServiceOrderStatus.ORCAMENTAR,
         ServiceOrderStatus.DEVOLVIDO,
         ServiceOrderStatus.DESCARTE,
       ]
-      if (!allowedFromSemVer.includes(validatedData.status as (typeof allowedFromSemVer)[number])) {
+      if (!allowedFromSemVer.includes(validatedData.status)) {
         return NextResponse.json(
           { error: 'Do estado SEM_VER só pode mudar para ORCAMENTAR, DEVOLVIDO ou DESCARTE.' },
           { status: 400 }
@@ -196,7 +189,6 @@ export async function PUT(
       }
     }
 
-    // Regra: para mover para APROVADO é necessário um técnico atribuído
     if (validatedData.status === ServiceOrderStatus.APROVADO) {
       const technicianId = validatedData.technicianId ?? existingOrder.technicianId
       if (!technicianId) {
@@ -207,8 +199,7 @@ export async function PUT(
       }
     }
 
-     // Regra: para mover para MELHORAR é necessário um técnico atribuído
-     if (validatedData.status === ServiceOrderStatus.MELHORAR) {
+    if (validatedData.status === ServiceOrderStatus.MELHORAR) {
        const technicianId = validatedData.technicianId ?? existingOrder.technicianId
        if (!technicianId) {
          return NextResponse.json(
@@ -218,183 +209,66 @@ export async function PUT(
        }
      }
 
-     // Preparar dados para atualização
-     const updateData: UpdateServiceOrderData = {
-       ...validatedData,
-       updatedAt: new Date()
+     // Prepare Update
+     const data: any = { ...validatedData, updatedAt: new Date().toISOString() }
+     
+     if (data.budgetItems) {
+        data.budgetItems = sanitizeBudgetItems(data.budgetItems)
      }
 
-     // Sanitizar itens de orçamento se presentes
-     if (Object.prototype.hasOwnProperty.call(validatedData, 'budgetItems')) {
-       updateData.budgetItems = sanitizeBudgetItems(validatedData.budgetItems)
-     }
-
-     // Converter datas se fornecidas
-     if (validatedData.arrivalDate) {
-       updateData.arrivalDate = new Date(validatedData.arrivalDate)
-     }
-     if (validatedData.openingDate) {
-       updateData.openingDate = new Date(validatedData.openingDate)
-     }
-     if (validatedData.completionDate) {
-       updateData.completionDate = new Date(validatedData.completionDate)
-     }
-     if (validatedData.deliveryDate) {
-       updateData.deliveryDate = new Date(validatedData.deliveryDate)
-     }
-     if (validatedData.paymentDate) {
-       updateData.paymentDate = new Date(validatedData.paymentDate)
-     }
-
-
-
-     // Se o status for alterado para TERMINADO e não houver data de conclusão, definir agora
-     if (validatedData.status === ServiceOrderStatus.TERMINADO && !validatedData.completionDate && !existingOrder.completionDate) {
-       updateData.completionDate = new Date()
-     }
-
-     // Se o status for alterado para DEVOLVIDO e não houver data de entrega, definir agora
-     if (validatedData.status === ServiceOrderStatus.DEVOLVIDO && !validatedData.deliveryDate && !existingOrder.deliveryDate) {
-       updateData.deliveryDate = new Date()
-     }
-
-     // Mapear atualização de técnico via relação
-     const prismaUpdateData: any = { ...updateData }
-     if (Object.prototype.hasOwnProperty.call(validatedData, 'technicianId')) {
-       delete prismaUpdateData.technicianId
-       if (validatedData.technicianId) {
-         prismaUpdateData.technician = { connect: { id: validatedData.technicianId } }
-       } else {
-         prismaUpdateData.technician = { disconnect: true }
-       }
-     }
-
-     const updatedOrder = await prisma.serviceOrder.update({
-       where: { id: id },
-       data: prismaUpdateData,
-       include: {
-         client: true,
-         technician: true
-       }
+     // Dates
+     const dateFields = ['arrivalDate', 'openingDate', 'completionDate', 'deliveryDate', 'paymentDate']
+     dateFields.forEach(field => {
+         if (data[field]) data[field] = new Date(data[field]).toISOString()
      })
 
-    // Ao sair de SEM_VER: informar posição na fila
-    try {
-      if (
-        existingOrder.status === ServiceOrderStatus.SEM_VER &&
-        validatedData.status &&
-        validatedData.status !== ServiceOrderStatus.SEM_VER
-      ) {
-        const countAhead = await prisma.serviceOrder.count({
-          where: {
-            status: ServiceOrderStatus.SEM_VER,
-            openingDate: { lt: existingOrder.openingDate },
-          },
-        })
-        const to = updatedOrder.client?.phone || ""
-        if (to) {
-          const payload = buildTemplatePayload("equipamentos_pendentes_abertura", {
-            nome: updatedOrder.client?.name || "Cliente",
-            equipamento: updatedOrder.equipmentType,
-            quantidade: String(countAhead),
-          })
-          if (payload) {
-            const result = await sendTemplate({
-              to,
-              name: payload.name,
-              language: payload.language,
-              components: payload.components,
-            })
-            await prisma.notification.create({
-              data: {
-                title: result.ok ? "WhatsApp enviado" : "Falha no WhatsApp",
-                message: result.ok
-                  ? `Fila de abertura • ${updatedOrder.client?.name || ""} • à frente: ${countAhead}`
-                  : `Fila de abertura • erro: ${String(result.error || "send_failed")}`,
-                type: result.ok ? "SUCCESS" : "ERROR",
-                clientId: updatedOrder.clientId,
-                serviceOrderId: updatedOrder.id,
-              },
-            })
-          }
-        }
-      }
-    } catch (err) {
-      console.warn("Falha ao enviar WhatsApp de saída de SEM_VER:", err)
-    }
-
-     // Criar notificações se necessário
-     try {
-       // Notificação de mudança de status
-       if (validatedData.status && validatedData.status !== existingOrder.status) {
-         await NotificationService.createServiceOrderStatusNotification(
-           id,
-           existingOrder.status,
-           validatedData.status
-         )
-       }
-
-       // Notificação de técnico atribuído
-       if (validatedData.technicianId && validatedData.technicianId !== existingOrder.technicianId) {
-         await NotificationService.createTechnicianAssignedNotification(
-           id
-         )
-       }
-     } catch (notificationError) {
-       console.error('Erro ao criar notificação:', notificationError)
-       // Não falhar a atualização por causa da notificação
+     if (data.status === ServiceOrderStatus.TERMINADO && !data.completionDate && !existingOrder.completionDate) {
+       data.completionDate = new Date().toISOString()
      }
 
-     // Ao entrar em ORCAMENTAR: gerar comprovante e enviar ao cliente (background)
-     try {
-       if (
-         validatedData.status &&
-         validatedData.status !== existingOrder.status &&
-         validatedData.status === ServiceOrderStatus.ORCAMENTAR
-       ) {
-         setImmediate(() => {
-           // 1) Gera/atualiza o comprovante no banco
-           ReceiptService.generateReceiptForDownload(id)
-             .then(async () => {
-               // Também gerar e salvar o PDF de orçamento (se houver itens)
-               try {
-                 await ReceiptService.generateBudgetForOrcamentar(id)
-               } catch (err) {
-                 console.error('Erro ao gerar orçamento (ORCAMENTAR):', err)
-               }
-
-               // 2) Escolhe métodos disponíveis conforme contato do cliente
-               const methods: ReceiptDeliveryMethod[] = []
-               if (updatedOrder.client?.email) methods.push(ReceiptDeliveryMethod.EMAIL)
-               if (updatedOrder.client?.phone) methods.push(ReceiptDeliveryMethod.WHATSAPP)
-
-               if (methods.length === 0) {
-                 console.warn(`Cliente sem contato para envio de comprovante - OS: ${id}`)
-                 return
-               }
-
-               // 3) Envia por cada método disponível
-               await Promise.all(
-                 methods.map((m) => ReceiptService.resendReceipt(id, m))
-               )
-               try {
-                 const { sendBudgetWhatsApp } = await import('@/lib/budget-notify')
-                 await sendBudgetWhatsApp(id)
-               } catch (err) {
-                 console.error('Erro ao enviar orçamento por WhatsApp:', err)
-               }
-              })
-              .catch((err) => {
-                console.error('Erro na geração/envio de comprovante (ORCAMENTAR):', err)
-              })
-          })
-       }
-     } catch (receiptFlowError) {
-       console.error('Erro ao agendar geração/envio de comprovante:', receiptFlowError)
-       // Não falhar a atualização por causa do envio de comprovante
+     if (data.status === ServiceOrderStatus.DEVOLVIDO && !data.deliveryDate && !existingOrder.deliveryDate) {
+       data.deliveryDate = new Date().toISOString()
      }
 
-     return NextResponse.json(updatedOrder)
+     // Build Query
+     const keys = Object.keys(data)
+     if (keys.length > 0) {
+        const setClause = keys.map(key => `${key} = ?`).join(', ')
+        const values = Object.values(data)
+        values.push(id)
+        await db.prepare(`UPDATE service_orders SET ${setClause} WHERE id = ?`).bind(...values).run()
+     }
+
+     // Fetch updated
+     const updatedOrder: any = await db.prepare(`
+        SELECT so.*, 
+            c.id as clientId, c.name as clientName, c.email as clientEmail, c.phone as clientPhone,
+            t.id as technicianId, t.name as technicianName, t.email as technicianEmail, t.phone as technicianPhone
+        FROM service_orders so
+        LEFT JOIN clients c ON so.clientId = c.id
+        LEFT JOIN technicians t ON so.technicianId = t.id
+        WHERE so.id = ?
+    `).bind(id).first()
+
+    // TODO: Implement Notifications and Receipts logic compatible with Cloudflare Workers (using Queues or direct DB inserts)
+    // Currently disabled to allow migration to proceed.
+
+     return NextResponse.json({
+         ...updatedOrder,
+         client: updatedOrder.clientId ? { 
+             id: updatedOrder.clientId, 
+             name: updatedOrder.clientName,
+             email: updatedOrder.clientEmail,
+             phone: updatedOrder.clientPhone
+         } : null,
+         technician: updatedOrder.technicianId ? { 
+             id: updatedOrder.technicianId, 
+             name: updatedOrder.technicianName,
+             email: updatedOrder.technicianEmail,
+             phone: updatedOrder.technicianPhone
+         } : null
+     })
+
    } catch (error) {
      if (error instanceof z.ZodError) {
        return NextResponse.json(
@@ -411,18 +285,16 @@ export async function PUT(
    }
 }
 
-// DELETE /api/service-orders/[id] - Excluir ordem de serviço
+// DELETE /api/service-orders/[id]
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    const db = getRequestContext().env.DB
 
-    // Verificar se a ordem de serviço existe
-    const existingOrder = await prisma.serviceOrder.findUnique({
-      where: { id: id }
-    })
+    const existingOrder: any = await db.prepare('SELECT status FROM service_orders WHERE id = ?').bind(id).first()
 
     if (!existingOrder) {
       return NextResponse.json(
@@ -431,7 +303,6 @@ export async function DELETE(
       )
     }
 
-    // Verificar se a ordem pode ser excluída (por exemplo, não permitir exclusão de ordens concluídas)
     if (existingOrder.status === ServiceOrderStatus.TERMINADO) {
       return NextResponse.json(
         { error: 'Não é possível excluir ordens de serviço concluídas' },
@@ -439,11 +310,11 @@ export async function DELETE(
       )
     }
 
-    // Excluir dependências para evitar erro de restrição de chave estrangeira
-    await prisma.$transaction([
-      prisma.receiptDelivery.deleteMany({ where: { serviceOrderId: id } }),
-      prisma.notification.deleteMany({ where: { serviceOrderId: id } }),
-      prisma.serviceOrder.delete({ where: { id } }),
+    // Manual Cascade Delete
+    await db.batch([
+        db.prepare('DELETE FROM receipt_deliveries WHERE serviceOrderId = ?').bind(id),
+        db.prepare('DELETE FROM notifications WHERE serviceOrderId = ?').bind(id),
+        db.prepare('DELETE FROM service_orders WHERE id = ?').bind(id)
     ])
 
     return NextResponse.json({ message: 'Ordem de serviço excluída com sucesso' })

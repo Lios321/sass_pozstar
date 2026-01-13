@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/prisma";
 import { ReceiptService } from "./receipt-service";
 import { uploadMedia, sendTemplate } from "./whatsapp";
 import { buildTemplatePayload } from "./whatsapp-templates";

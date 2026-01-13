@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
+import { getRequestContext } from '@cloudflare/next-on-pages'
 
-const prisma = new PrismaClient()
+export const runtime = 'edge'
 
 const clientAuthSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -17,23 +17,18 @@ export async function POST(request: NextRequest) {
 
     // Normalizar telefone (remover caracteres especiais)
     const normalizedPhone = phone.replace(/\D/g, '')
+    const db = getRequestContext().env.DB
 
-    // Buscar cliente pelo email e telefone
-    const client = await prisma.client.findFirst({
-      where: {
-        email: email.toLowerCase(),
-        phone: {
-          contains: normalizedPhone.slice(-8) // Últimos 8 dígitos para flexibilidade
-        }
-      },
-      include: {
-        serviceOrders: {
-          orderBy: {
-            createdAt: 'desc'
-          }
-        }
-      }
-    })
+    // Buscar cliente pelo email e telefone (usando LIKE para os últimos 8 dígitos do telefone)
+    // Prisma: phone: { contains: normalizedPhone.slice(-8) }
+    const phoneSuffix = normalizedPhone.slice(-8)
+    
+    const client: any = await db.prepare(`
+      SELECT c.*, (SELECT COUNT(*) FROM service_orders WHERE clientId = c.id) as serviceOrdersCount
+      FROM clients c
+      WHERE lower(c.email) = lower(?) AND c.phone LIKE ?
+      LIMIT 1
+    `).bind(email, `%${phoneSuffix}%`).first()
 
     if (!client) {
       return NextResponse.json(
@@ -48,7 +43,7 @@ export async function POST(request: NextRequest) {
       name: client.name,
       email: client.email,
       phone: client.phone,
-      serviceOrdersCount: client.serviceOrders.length
+      serviceOrdersCount: client.serviceOrdersCount || 0
     }
 
     return NextResponse.json({

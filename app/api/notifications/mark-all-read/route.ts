@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { getRequestContext } from '@cloudflare/next-on-pages'
 import { z } from 'zod'
 
-const prisma = new PrismaClient()
-
-interface NotificationFilter {
-  isRead: boolean;
-  userId?: string;
-  clientId?: string;
-}
+export const runtime = 'edge'
 
 const markAllReadSchema = z.object({
   userId: z.string().optional(),
@@ -29,25 +23,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Construir filtros
-    const where: NotificationFilter = {
-      isRead: false
-    }
-    
-    if (userId) where.userId = userId
-    if (clientId) where.clientId = clientId
+    const db = getRequestContext().env.DB
+    let query = 'UPDATE notifications SET isRead = 1, updatedAt = ? WHERE isRead = 0'
+    const params: any[] = [new Date().toISOString()]
 
-    // Marcar todas as notificações como lidas
-    const result = await prisma.notification.updateMany({
-      where,
-      data: {
-        isRead: true
-      }
-    })
+    if (userId) {
+      query += ' AND userId = ?'
+      params.push(userId)
+    }
+    if (clientId) {
+      query += ' AND clientId = ?'
+      params.push(clientId)
+    }
+
+    const result = await db.prepare(query).bind(...params).run()
 
     return NextResponse.json({
       message: 'Notificações marcadas como lidas',
-      count: result.count
+      count: result.meta.changes
     })
   } catch (error) {
     if (error instanceof z.ZodError) {

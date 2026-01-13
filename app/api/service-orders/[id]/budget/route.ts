@@ -3,7 +3,7 @@ import { ReceiptService } from '@/lib/receipt-service'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 
-export const runtime = 'nodejs'
+export const runtime = 'edge'
 
 export async function GET(
   request: NextRequest,

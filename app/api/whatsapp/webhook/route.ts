@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { ServiceOrderStatus } from "@prisma/client";
+import { getRequestContext } from "@cloudflare/next-on-pages";
+
+export const runtime = 'edge'
+
+const ServiceOrderStatus = {
+  ORCAMENTAR: "ORCAMENTAR",
+  APROVADO: "APROVADO",
+  DEVOLVER: "DEVOLVER",
+};
 
 export async function GET(req: NextRequest) {
   const mode = req.nextUrl.searchParams.get("hub.mode");
@@ -17,6 +24,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const entries = Array.isArray(body?.entry) ? body.entry : [];
+    const db = getRequestContext().env.DB;
+
     for (const entry of entries) {
       const changes = Array.isArray(entry?.changes) ? entry.changes : [];
       for (const change of changes) {
@@ -28,46 +37,65 @@ export async function POST(req: NextRequest) {
           if (type === "button") {
             const text = String(msg?.button?.text || "").toLowerCase();
             const digits = from.replace(/[^\d]/g, "");
-            const client = await prisma.client.findFirst({
-              where: {
-                OR: [{ phone: { contains: digits } }, { phone: { contains: `55${digits}` } }],
-              },
-              select: { id: true, name: true },
-            });
+            
+            const client: any = await db.prepare(`
+              SELECT id, name FROM clients 
+              WHERE phone LIKE ? OR phone LIKE ?
+              LIMIT 1
+            `).bind(`%${digits}%`, `%55${digits}%`).first();
+
             if (!client?.id) continue;
-            const os = await prisma.serviceOrder.findFirst({
-              where: { clientId: client.id, status: ServiceOrderStatus.ORCAMENTAR },
-              orderBy: { updatedAt: "desc" },
-            });
+
+            const os: any = await db.prepare(`
+              SELECT * FROM service_orders 
+              WHERE clientId = ? AND status = ?
+              ORDER BY updatedAt DESC 
+              LIMIT 1
+            `).bind(client.id, ServiceOrderStatus.ORCAMENTAR).first();
+
             if (!os) continue;
+
             if (text.includes("aprovar")) {
-              await prisma.serviceOrder.update({
-                where: { id: os.id },
-                data: { status: ServiceOrderStatus.APROVADO, updatedAt: new Date() },
-              });
-              await prisma.notification.create({
-                data: {
-                  title: "Orçamento aprovado",
-                  message: `Cliente aprovou orçamento • OS ${os.orderNumber}`,
-                  type: "SUCCESS",
-                  clientId: client.id,
-                  serviceOrderId: os.id,
-                },
-              });
+              await db.prepare(`
+                UPDATE service_orders 
+                SET status = ?, updatedAt = ? 
+                WHERE id = ?
+              `).bind(ServiceOrderStatus.APROVADO, new Date().toISOString(), os.id).run();
+
+              await db.prepare(`
+                INSERT INTO notifications (id, title, message, type, clientId, serviceOrderId, createdAt, updatedAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+              `).bind(
+                crypto.randomUUID(),
+                "Orçamento aprovado",
+                `Cliente aprovou orçamento • OS ${os.orderNumber}`,
+                "SUCCESS",
+                client.id,
+                os.id,
+                new Date().toISOString(),
+                new Date().toISOString()
+              ).run();
+
             } else if (text.includes("rejeitar") || text.includes("rejeitar orçamento")) {
-              await prisma.serviceOrder.update({
-                where: { id: os.id },
-                data: { status: ServiceOrderStatus.DEVOLVER, updatedAt: new Date() },
-              });
-              await prisma.notification.create({
-                data: {
-                  title: "Orçamento rejeitado",
-                  message: `Cliente rejeitou orçamento • OS ${os.orderNumber}`,
-                  type: "WARNING",
-                  clientId: client.id,
-                  serviceOrderId: os.id,
-                },
-              });
+              await db.prepare(`
+                UPDATE service_orders 
+                SET status = ?, updatedAt = ? 
+                WHERE id = ?
+              `).bind(ServiceOrderStatus.DEVOLVER, new Date().toISOString(), os.id).run();
+
+              await db.prepare(`
+                INSERT INTO notifications (id, title, message, type, clientId, serviceOrderId, createdAt, updatedAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+              `).bind(
+                crypto.randomUUID(),
+                "Orçamento rejeitado",
+                `Cliente rejeitou orçamento • OS ${os.orderNumber}`,
+                "WARNING",
+                client.id,
+                os.id,
+                new Date().toISOString(),
+                new Date().toISOString()
+              ).run();
             }
           }
         }

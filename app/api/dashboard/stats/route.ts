@@ -1,29 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { ServiceOrderStatus } from '@prisma/client'
+import { getRequestContext } from '@cloudflare/next-on-pages'
 
-interface TechnicianPerformance {
-  technicianId: string | null;
-  _count: {
-    technicianId: number;
-  };
-}
+export const runtime = 'edge'
 
-interface Technician {
-  id: string;
-  name: string;
-}
-
-interface OrdersByStatus {
-  status: ServiceOrderStatus;
-  _count: {
-    status: number;
-  };
-}
-
-// GET - Estatísticas do dashboard
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -34,188 +15,109 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const period = searchParams.get('period') || '30' // dias
+    const db = getRequestContext().env.DB
 
+    // Calculate dates
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - parseInt(period))
+    const startDateStr = startDate.toISOString()
 
-    // Estatísticas gerais
-    const [
-      totalClients,
-      totalTechnicians,
-      totalServiceOrders,
-      pendingOrders,
-      completedOrders,
-      recentOrders,
-      ordersByStatus,
-       technicianPerformance
-     ] = await Promise.all([
-      // Total de clientes
-      prisma.client.count(),
-      
-      // Total de técnicos
-      prisma.technician.count(),
-      
-      // Total de ordens de serviço
-      prisma.serviceOrder.count(),
-      
-      // Ordens pendentes (não finalizadas)
-      prisma.serviceOrder.count({
-        where: {
-          status: {
-            in: [
-              ServiceOrderStatus.SEM_VER,
-              ServiceOrderStatus.ORCAMENTAR,
-              ServiceOrderStatus.APROVADO,
-              ServiceOrderStatus.ESPERANDO_PECAS,
-              ServiceOrderStatus.COMPRADO,
-              ServiceOrderStatus.MELHORAR,
-              ServiceOrderStatus.ESPERANDO_CLIENTE,
-              ServiceOrderStatus.DEVOLVIDO,
-            ]
-          }
-        }
-      }),
-      
-      // Ordens concluídas no período (TERMINADO)
-      prisma.serviceOrder.count({
-        where: {
-          status: ServiceOrderStatus.TERMINADO,
-          completionDate: {
-            gte: startDate
-          }
-        }
-      }),
-      
-      // Ordens recentes (últimas 10)
-      prisma.serviceOrder.findMany({
-        take: 10,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          client: {
-            select: { name: true }
-          },
-          technician: {
-            select: { name: true }
-          }
-        }
-      }),
-      
-      // Distribuição por status
-      prisma.serviceOrder.groupBy({
-        by: ['status'],
-        _count: {
-          status: true
-        }
-      }),
-      
-      // Ordens por mês movido para fora de Promise.all
-      
-      // Performance dos técnicos
-      prisma.serviceOrder.groupBy({
-        by: ['technicianId'],
-        where: {
-          createdAt: {
-            gte: startDate
-          },
-          technicianId: {
-            not: null
-          }
-        },
-        _count: {
-          technicianId: true
-        }
-      })
-    ])
-
-    // Ordens por mês (últimos 6 meses) com fallback robusto
-    let ordersByMonthRaw: Array<{ month: unknown; count: unknown }> = []
-    try {
-      ordersByMonthRaw = await prisma.$queryRaw`
-        SELECT 
-          strftime('%Y-%m', createdAt) as month,
-          COUNT(*) as count
-        FROM service_orders 
-        WHERE createdAt >= date('now', '-6 months')
-        GROUP BY strftime('%Y-%m', createdAt)
-        ORDER BY month
-      `
-    } catch (_err) {
-      const now = new Date()
-      const months: { month: string; count: number }[] = []
-      for (let i = 5; i >= 0; i--) {
-        const from = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const to = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
-        const count = await prisma.serviceOrder.count({
-          where: {
-            createdAt: {
-              gte: from,
-              lt: to
-            }
-          }
-        })
-        const monthLabel = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}`
-        months.push({ month: monthLabel, count })
-      }
-      ordersByMonthRaw = months
-    }
-
-    // Buscar nomes dos técnicos para performance
-    const technicianIds = Array.from(new Set(
-      technicianPerformance
-        .map((tp: TechnicianPerformance) => tp.technicianId)
-        .filter((id: string | null): id is string => Boolean(id))
-    ))
-    const technicians = technicianIds.length > 0
-      ? await prisma.technician.findMany({
-          where: {
-            id: {
-              in: technicianIds as string[]
-            }
-          },
-          select: {
-            id: true,
-            name: true
-          }
-        })
-      : []
-
-    const technicianPerformanceWithNames = technicianPerformance.map((tp: TechnicianPerformance) => {
-      const technician = technicians.find((t: Technician) => t.id === tp.technicianId)
-      return {
-        name: technician?.name || 'Desconhecido',
-        completedOrders: tp._count.technicianId
-      }
-    })
-
-    // Normalize ordersByMonth to ensure count is a JSON-serializable number
-    const ordersByMonthNormalized = Array.isArray(ordersByMonthRaw)
-    ? ordersByMonthRaw.map((row) => ({
-           month: String(row.month ?? ''),
-           count: Number(row.count ?? 0),
-         }))
-       : []
-
-    // Calcular taxa de crescimento
     const previousPeriodStart = new Date(startDate)
     previousPeriodStart.setDate(previousPeriodStart.getDate() - parseInt(period))
+    const previousPeriodStartStr = previousPeriodStart.toISOString()
 
-    const previousPeriodOrders = await prisma.serviceOrder.count({
-      where: {
-        createdAt: {
-          gte: previousPeriodStart,
-          lt: startDate
-        }
-      }
-    })
+    // Parallel queries
+    const queries = [
+        db.prepare('SELECT COUNT(*) as count FROM clients').first(),
+        db.prepare('SELECT COUNT(*) as count FROM technicians').first(),
+        db.prepare('SELECT COUNT(*) as count FROM service_orders').first(),
+        db.prepare(`
+            SELECT COUNT(*) as count FROM service_orders 
+            WHERE status IN ('SEM_VER', 'ORCAMENTAR', 'APROVADO', 'ESPERANDO_PECAS', 'COMPRADO', 'MELHORAR', 'ESPERANDO_CLIENTE', 'DEVOLVIDO')
+        `).first(),
+        db.prepare(`
+            SELECT COUNT(*) as count FROM service_orders 
+            WHERE status = 'TERMINADO' AND completionDate >= ?
+        `).bind(startDateStr).first(),
+        db.prepare(`
+            SELECT so.*, c.name as clientName, t.name as technicianName 
+            FROM service_orders so
+            LEFT JOIN clients c ON so.clientId = c.id
+            LEFT JOIN technicians t ON so.technicianId = t.id
+            ORDER BY so.createdAt DESC LIMIT 10
+        `).all(),
+        db.prepare(`
+            SELECT status, COUNT(*) as count FROM service_orders GROUP BY status
+        `).all(),
+        db.prepare(`
+            SELECT technicianId, COUNT(*) as count 
+            FROM service_orders 
+            WHERE createdAt >= ? AND technicianId IS NOT NULL 
+            GROUP BY technicianId
+        `).bind(startDateStr).all(),
+        // Growth rate queries
+        db.prepare(`SELECT COUNT(*) as count FROM service_orders WHERE createdAt >= ? AND createdAt < ?`).bind(previousPeriodStartStr, startDateStr).first(),
+        db.prepare(`SELECT COUNT(*) as count FROM service_orders WHERE createdAt >= ?`).bind(startDateStr).first(),
+        // Orders by month
+        db.prepare(`
+            SELECT strftime('%Y-%m', createdAt) as month, COUNT(*) as count
+            FROM service_orders
+            WHERE createdAt >= date('now', '-6 months')
+            GROUP BY month
+            ORDER BY month
+        `).all()
+    ]
 
-    const currentPeriodOrders = await prisma.serviceOrder.count({
-      where: {
-        createdAt: {
-          gte: startDate
-        }
-      }
-    })
+    const results = await Promise.all(queries)
+    
+    const totalClients = (results[0] as any).count
+    const totalTechnicians = (results[1] as any).count
+    const totalServiceOrders = (results[2] as any).count
+    const pendingOrders = (results[3] as any).count
+    const completedOrders = (results[4] as any).count
+    const recentOrdersRaw = (results[5] as any).results
+    const ordersByStatusRaw = (results[6] as any).results
+    const technicianPerformanceRaw = (results[7] as any).results
+    const previousPeriodOrders = (results[8] as any).count
+    const currentPeriodOrders = (results[9] as any).count
+    const ordersByMonthRaw = (results[10] as any).results
 
+    // Format Recent Orders
+    const recentOrders = recentOrdersRaw.map((o: any) => ({
+        ...o,
+        client: { name: o.clientName },
+        technician: { name: o.technicianName }
+    }))
+
+    // Format Orders By Status
+    const ordersByStatus = ordersByStatusRaw.map((o: any) => ({
+        name: o.status,
+        value: o.count
+    }))
+
+    // Format Technician Performance
+    // Need to fetch technician names for the IDs
+    const techIds = technicianPerformanceRaw.map((tp: any) => tp.technicianId).filter(Boolean)
+    let technicianNames: Record<string, string> = {}
+    
+    if (techIds.length > 0) {
+        // SQL IN clause
+        const placeholders = techIds.map(() => '?').join(',')
+        const techResults = await db.prepare(`SELECT id, name FROM technicians WHERE id IN (${placeholders})`)
+            .bind(...techIds)
+            .all()
+        
+        techResults.results.forEach((t: any) => {
+            technicianNames[t.id] = t.name
+        })
+    }
+
+    const technicianPerformance = technicianPerformanceRaw.map((tp: any) => ({
+        name: technicianNames[tp.technicianId] || 'Desconhecido',
+        completedOrders: tp.count
+    }))
+
+    // Growth Rate
     const growthRate = previousPeriodOrders > 0 
       ? ((currentPeriodOrders - previousPeriodOrders) / previousPeriodOrders) * 100 
       : 0
@@ -228,15 +130,11 @@ export async function GET(request: NextRequest) {
       completedOrders,
       growthRate: Math.round(growthRate * 100) / 100,
       recentOrders,
-      ordersByStatus: ordersByStatus.map((item: OrdersByStatus) => ({
-        name: String(item.status),
-        value: item._count.status
-      })),
-      ordersByMonth: ordersByMonthNormalized,
-      technicianPerformance: technicianPerformanceWithNames
+      ordersByStatus,
+      ordersByMonth: ordersByMonthRaw,
+      technicianPerformance
     }
 
-    // Curto cache privado para aliviar carga do banco (1 minuto)
     return new NextResponse(JSON.stringify(body), {
       status: 200,
       headers: {

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { getRequestContext } from '@cloudflare/next-on-pages'
+
+export const runtime = 'edge'
 
 const updateSchema = z.object({
   name: z.string().min(2).optional(),
@@ -43,35 +45,48 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (!parsed.success) {
       return NextResponse.json({ error: 'Dados inválidos', details: parsed.error.issues }, { status: 400 })
     }
+    
+    const db = getRequestContext().env.DB
+    const { id } = await params
+
     const data: any = {}
     if (parsed.data.name) data.name = parsed.data.name
     if (parsed.data.email) data.email = parsed.data.email
     if (parsed.data.phone) data.phone = parsed.data.phone
-    if (typeof parsed.data.isAvailable === 'boolean') data.isAvailable = parsed.data.isAvailable
+    if (typeof parsed.data.isAvailable === 'boolean') data.isAvailable = parsed.data.isAvailable ? 1 : 0
+    
     const specs = normalizeSpecializations(parsed.data.specializations)
     if (specs !== undefined) data.specializations = JSON.stringify(specs)
 
-    const { id } = await params
-    const tech = await prisma.technician.update({
-      where: { id },
-      data,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        isAvailable: true,
-        specializations: true,
-        createdAt: true,
-      },
-    })
+    // Construct Update Query
+    const keys = Object.keys(data)
+    if (keys.length > 0) {
+        const setClause = keys.map(key => `${key} = ?`).join(', ')
+        const values = Object.values(data)
+        // Add updatedAt
+        const finalSetClause = setClause + ', updatedAt = ?'
+        const finalValues = [...values, new Date().toISOString(), id]
+        
+        await db.prepare(`UPDATE technicians SET ${finalSetClause} WHERE id = ?`)
+            .bind(...finalValues)
+            .run()
+    }
+
+    const tech: any = await db.prepare('SELECT * FROM technicians WHERE id = ?').bind(id).first()
+    
+    if (!tech) {
+        return NextResponse.json({ error: 'Técnico não encontrado' }, { status: 404 })
+    }
+
     return NextResponse.json({
       technician: {
         ...tech,
+        isAvailable: !!tech.isAvailable,
         specializations: tech.specializations ? JSON.parse(tech.specializations) : [],
       },
     })
   } catch (e) {
+    console.error('Erro ao atualizar técnico:', e)
     return NextResponse.json({ error: 'Erro ao atualizar técnico' }, { status: 500 })
   }
 }
@@ -84,24 +99,26 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     }
 
     const { id } = await params
-    const existing = await prisma.technician.findUnique({
-      where: { id },
-      include: { _count: { select: { serviceOrders: true } } },
-    })
+    const db = getRequestContext().env.DB
+
+    const existing: any = await db.prepare(
+        `SELECT id, (SELECT COUNT(*) FROM service_orders WHERE technicianId = technicians.id) as serviceOrdersCount FROM technicians WHERE id = ?`
+    ).bind(id).first()
+
     if (!existing) {
       return NextResponse.json({ error: 'Técnico não encontrado' }, { status: 404 })
     }
-    if (existing._count.serviceOrders > 0) {
+    if (existing.serviceOrdersCount > 0) {
       return NextResponse.json(
         { error: 'Não é possível deletar técnico com ordens de serviço vinculadas' },
         { status: 400 }
       )
     }
 
-    await prisma.technician.delete({ where: { id } })
+    await db.prepare('DELETE FROM technicians WHERE id = ?').bind(id).run()
     return NextResponse.json({ message: 'Técnico removido com sucesso' })
   } catch (e) {
+    console.error('Erro ao remover técnico:', e)
     return NextResponse.json({ error: 'Erro ao remover técnico' }, { status: 500 })
   }
 }
-

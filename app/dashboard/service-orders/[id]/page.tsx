@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { ArrowLeft, Download, FileText } from 'lucide-react'
 import { toast } from 'sonner'
-import type { ServiceOrderStatus } from '@prisma/client'
+import type { ServiceOrderStatus } from '@/lib/types'
 
 interface BudgetItem {
   type: 'PECA' | 'SERVICO'

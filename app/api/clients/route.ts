@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { getUserFromToken, getTokenFromRequest } from '@/lib/auth'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
-import { sendTemplate } from '@/lib/whatsapp'
-import { buildTemplatePayload } from '@/lib/whatsapp-templates'
-import { EmailService } from '@/lib/email-service'
+import { getRequestContext } from '@cloudflare/next-on-pages'
+
+export const runtime = 'edge'
 
 const clientSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
@@ -37,31 +35,35 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10')
     const search = searchParams.get('search') || ''
 
-    const skip = (page - 1) * limit
+    const offset = (page - 1) * limit
+    const db = getRequestContext().env.DB
 
-    const where = search ? {
-      OR: [
-        { name: { contains: search } },
-        { email: { contains: search } },
-        { phone: { contains: search } },
-        { document: { contains: search } }
-      ]
-    } : {}
+    let whereClause = ''
+    let params: any[] = []
 
-    const [clients, total] = await Promise.all([
-      prisma.client.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          _count: {
-            select: { serviceOrders: true }
-          }
-        }
-      }),
-      prisma.client.count({ where })
-    ])
+    if (search) {
+      whereClause = 'WHERE name LIKE ? OR email LIKE ? OR phone LIKE ? OR document LIKE ?'
+      const s = `%${search}%`
+      params = [s, s, s, s]
+    }
+
+    const countQuery = `SELECT COUNT(*) as count FROM clients ${whereClause}`
+    const totalResult: any = await db.prepare(countQuery).bind(...params).first()
+    const total = totalResult?.count || 0
+
+    const query = `
+      SELECT c.*, (SELECT COUNT(*) FROM service_orders WHERE clientId = c.id) as serviceOrdersCount 
+      FROM clients c 
+      ${whereClause} 
+      ORDER BY c.createdAt DESC 
+      LIMIT ? OFFSET ?
+    `
+    const { results } = await db.prepare(query).bind(...params, limit, offset).all()
+
+    const clients = results.map((c: any) => ({
+      ...c,
+      _count: { serviceOrders: c.serviceOrdersCount }
+    }))
 
     return NextResponse.json({
       clients,
@@ -91,63 +93,41 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { 
-      name, 
-      email, 
-      phone, 
-      address, 
-      document, 
-      city, 
-      state, 
-      zipCode, 
-      complement, 
-      country, 
-      latitude, 
-      longitude,
-      clientType 
-    } = clientSchema.parse(body)
+    const data = clientSchema.parse(body)
+    
+    const db = getRequestContext().env.DB
 
-    // Verificar se cliente já existe
-    const existingClient = await prisma.client.findFirst({
-      where: {
-        OR: [
-          { email },
-          { document }
-        ]
-      }
-    })
+    // Check if email or document exists
+    const existing = await db.prepare(
+      'SELECT id FROM clients WHERE email = ? OR document = ?'
+    ).bind(data.email, data.document).first()
 
-    if (existingClient) {
+    if (existing) {
       return NextResponse.json(
         { error: 'Cliente já existe com este email ou documento' },
         { status: 400 }
       )
     }
 
-  const client = await prisma.client.create({
-    data: {
-      name,
-      email,
-      phone,
-      address,
-      document,
-      city,
-      state,
-      zipCode,
-      complement,
-      country,
-      latitude,
-      longitude,
-      clientType
-    }
-  })
+    const id = crypto.randomUUID()
+    const now = new Date().toISOString()
 
-    // DESABILITADO TEMPORARIAMENTE: não enviar mensagens WhatsApp nem Email ao criar cliente
+    const fields = [
+      'id', 'name', 'email', 'phone', 'address', 'document', 'city', 'state', 'zipCode', 
+      'complement', 'country', 'latitude', 'longitude', 'clientType', 'createdAt', 'updatedAt'
+    ]
+    const placeholders = fields.map(() => '?').join(', ')
+    
+    await db.prepare(
+      `INSERT INTO clients (${fields.join(', ')}) VALUES (${placeholders})`
+    ).bind(
+      id, data.name, data.email, data.phone, data.address, data.document, data.city, data.state, data.zipCode,
+      data.complement || null, data.country, data.latitude || null, data.longitude || null, data.clientType, now, now
+    ).run()
 
-    return NextResponse.json({
-      message: 'Cliente criado com sucesso',
-      client
-    }, { status: 201 })
+    const client = { id, ...data, createdAt: now, updatedAt: now }
+
+    return NextResponse.json(client, { status: 201 })
 
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -156,7 +136,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-
     console.error('Erro ao criar cliente:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },

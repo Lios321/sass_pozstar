@@ -1,28 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { getUserFromToken, getTokenFromRequest } from '@/lib/auth'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
-import type { Prisma } from '@prisma/client'
 import { hashPassword } from '@/lib/auth'
 import jwt from 'jsonwebtoken'
 import { EmailService } from '@/lib/email-service'
 import { inviteTemplate } from '@/lib/email-templates'
+import { getRequestContext } from '@cloudflare/next-on-pages'
 
-// Interfaces para tipos de dados
-// Removido TechnicianWhereClause customizado; vamos usar o tipo oficial do Prisma
-
-interface TechnicianFromDB {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  specializations: string | null;
-  isAvailable: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export const runtime = 'edge'
 
 const createSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
@@ -62,41 +48,46 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || ''
     const available = searchParams.get('available')
 
-    const skip = (page - 1) * limit
+    const offset = (page - 1) * limit
+    const db = getRequestContext().env.DB
 
-    const where: Prisma.TechnicianWhereInput = {}
+    let whereClauses: string[] = []
+    let params: any[] = []
 
     if (search) {
-      where.OR = [
-        { name: { contains: search } },
-        { email: { contains: search } },
-        { phone: { contains: search } }
-      ]
+      whereClauses.push('(name LIKE ? OR email LIKE ? OR phone LIKE ?)')
+      const s = `%${search}%`
+      params.push(s, s, s)
     }
 
     if (available !== null && available !== undefined) {
-      where.isAvailable = available === 'true'
+      whereClauses.push('isAvailable = ?')
+      params.push(available === 'true' ? 1 : 0) // SQLite uses 1/0 for boolean
     }
 
-    const [technicians, total] = await Promise.all([
-      prisma.technician.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          _count: {
-            select: { serviceOrders: true }
-          }
-        }
-      }),
-      prisma.technician.count({ where })
-    ])
+    const whereSQL = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : ''
+
+    const countQuery = `SELECT COUNT(*) as count FROM technicians ${whereSQL}`
+    const totalResult: any = await db.prepare(countQuery).bind(...params).first()
+    const total = totalResult?.count || 0
+
+    const query = `
+      SELECT *, (SELECT COUNT(*) FROM service_orders WHERE technicianId = technicians.id) as serviceOrdersCount 
+      FROM technicians 
+      ${whereSQL} 
+      ORDER BY createdAt DESC 
+      LIMIT ? OFFSET ?
+    `
+    const { results: technicians } = await db.prepare(query).bind(...params, limit, offset).all()
 
     // Parse specializations JSON
-    const techniciansParsed = technicians.map((tech: TechnicianFromDB) => ({
+    const techniciansParsed = technicians.map((tech: any) => ({
       ...tech,
-      specializations: tech.specializations ? JSON.parse(tech.specializations) : []
+      isAvailable: !!tech.isAvailable, // Convert 1/0 to boolean
+      specializations: tech.specializations ? JSON.parse(tech.specializations) : [],
+      _count: {
+        serviceOrders: tech.serviceOrdersCount
+      }
     }))
 
     return NextResponse.json({
@@ -139,10 +130,10 @@ export async function POST(request: NextRequest) {
     const isAvailable =
       typeof parsed.data.isAvailable === 'boolean' ? parsed.data.isAvailable : true
 
+    const db = getRequestContext().env.DB
+
     // Verificar se técnico já existe
-    const existingTechnician = await prisma.technician.findUnique({
-      where: { email }
-    })
+    const existingTechnician = await db.prepare('SELECT id FROM technicians WHERE email = ?').bind(email).first()
 
     if (existingTechnician) {
       return NextResponse.json(
@@ -151,34 +142,35 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const technician = await prisma.technician.create({
-      data: {
-        name,
-        email,
-        phone,
-        isAvailable,
-        specializations: JSON.stringify(specializations)
-      }
-    })
+    const id = crypto.randomUUID()
+    const now = new Date().toISOString()
+    const specsJson = JSON.stringify(specializations)
 
-    const existingUser = await prisma.user.findUnique({ where: { email } })
+    await db.prepare(`
+        INSERT INTO technicians (id, name, email, phone, isAvailable, specializations, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(id, name, email, phone, isAvailable ? 1 : 0, specsJson, now, now).run()
+    
+    // Fetch created technician
+    const technician: any = await db.prepare('SELECT * FROM technicians WHERE id = ?').bind(id).first()
+
+    // Create User account if not exists
+    const existingUser = await db.prepare('SELECT id FROM users WHERE email = ?').bind(email).first()
     if (!existingUser) {
       const tempPassword = Math.random().toString(36).slice(-12)
       const hashed = await hashPassword(tempPassword)
-      await prisma.user.create({
-        data: {
-          name,
-          email,
-          password: hashed,
-          role: 'TECHNICIAN'
-        }
-      })
+      const userId = crypto.randomUUID()
+      
+      await db.prepare(`
+        INSERT INTO users (id, name, email, password, role, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(userId, name, email, hashed, 'TECHNICIAN', now, now).run()
     }
 
     let inviteLink: string | null = null
     let emailPreview: string | null = null
     try {
-      const origin = (() => {
+       const origin = (() => {
         try {
           return new URL(request.url).origin
         } catch {
@@ -216,14 +208,17 @@ export async function POST(request: NextRequest) {
           emailPreview = result.previewUrl
         }
       }
-    } catch {}
+    } catch (e) {
+        console.error("Email error", e)
+    }
 
     return NextResponse.json(
       {
         message: 'Técnico criado com sucesso',
         technician: {
           ...technician,
-          specializations
+          isAvailable: !!technician.isAvailable,
+          specializations: JSON.parse(technician.specializations || '[]')
         },
         inviteLink,
         emailPreview

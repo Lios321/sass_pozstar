@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { hashPassword } from '@/lib/auth'
 import { z } from 'zod'
+import { getRequestContext } from '@cloudflare/next-on-pages'
+
+export const runtime = 'edge'
 
 const registerSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
@@ -15,10 +17,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { name, email, password, role } = registerSchema.parse(body)
 
+    const db = getRequestContext().env.DB
+
     // Verificar se usuário já existe
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    })
+    const existingUser = await db.prepare('SELECT id FROM users WHERE email = ?').bind(email).first()
 
     if (existingUser) {
       return NextResponse.json(
@@ -31,21 +33,22 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await hashPassword(password)
 
     // Criar usuário
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        role
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true
-      }
-    })
+    const id = crypto.randomUUID()
+    const now = new Date().toISOString()
+    
+    // Assumindo que a tabela users tem colunas: id, email, name, password, role, createdAt, updatedAt
+    await db.prepare(
+      `INSERT INTO users (id, email, name, password, role, createdAt, updatedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).bind(id, email, name, hashedPassword, role, now, now).run()
+
+    const user = {
+      id,
+      name,
+      email,
+      role,
+      createdAt: now
+    }
 
     return NextResponse.json({
       message: 'Usuário criado com sucesso',

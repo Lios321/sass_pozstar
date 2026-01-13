@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft } from 'lucide-react'
 import { Toast } from '@/lib/toast'
 import { Separator } from '@/components/ui/separator'
-import type { ServiceOrderStatus } from '@prisma/client'
+import type { ServiceOrderStatus } from '@/lib/types'
 
 interface BudgetItem {
   type: 'PECA' | 'SERVICO'

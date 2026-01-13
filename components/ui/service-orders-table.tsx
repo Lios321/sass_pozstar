@@ -88,7 +88,7 @@ type SortField = 'orderNumber' | 'clientName' | 'equipmentType' | 'brand' | 'sta
 type SortDirection = 'asc' | 'desc';
 
 // Define unified status type used across UI
-type ServiceOrderStatus = import('@prisma/client').ServiceOrderStatus;
+import type { ServiceOrderStatus } from '@/lib/types';
 
 const statusConfig: Record<ServiceOrderStatus, { label: string; icon: any; className: string }> = {
   SEM_VER: {

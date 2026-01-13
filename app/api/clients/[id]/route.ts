@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
+import { getRequestContext } from '@cloudflare/next-on-pages'
+
+export const runtime = 'edge'
 
 const clientUpdateSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').optional(),
@@ -33,18 +35,12 @@ export async function GET(
     }
 
     const { id } = await params
-    const client = await prisma.client.findUnique({
-      where: { id },
-      include: {
-        serviceOrders: {
-          orderBy: { createdAt: 'desc' },
-          take: 10
-        },
-        _count: {
-          select: { serviceOrders: true }
-        }
-      }
-    })
+    const db = getRequestContext().env.DB
+
+    // Get client
+    const client: any = await db.prepare(
+        `SELECT *, (SELECT COUNT(*) FROM service_orders WHERE clientId = clients.id) as serviceOrdersCount FROM clients WHERE id = ?`
+    ).bind(id).first()
 
     if (!client) {
       return NextResponse.json(
@@ -53,7 +49,22 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ client })
+    // Get service orders
+    const { results: serviceOrders } = await db.prepare(
+        `SELECT * FROM service_orders WHERE clientId = ? ORDER BY createdAt DESC LIMIT 10`
+    ).bind(id).all()
+
+    const formattedClient = {
+        ...client,
+        serviceOrders,
+        _count: {
+            serviceOrders: client.serviceOrdersCount
+        }
+    }
+    // Remove temporary field if needed
+    delete formattedClient.serviceOrdersCount
+
+    return NextResponse.json({ client: formattedClient })
 
   } catch (error) {
     console.error('Erro ao buscar cliente:', error)
@@ -79,11 +90,10 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
     const updateData = clientUpdateSchema.parse(body)
+    const db = getRequestContext().env.DB
 
     // Verificar se cliente existe
-    const existingClient = await prisma.client.findUnique({
-      where: { id }
-    })
+    const existingClient: any = await db.prepare('SELECT id FROM clients WHERE id = ?').bind(id).first()
 
     if (!existingClient) {
       return NextResponse.json(
@@ -92,21 +102,22 @@ export async function PUT(
       )
     }
 
-    // Verificar conflitos de email/documento se estão sendo atualizados
+    // Verificar conflitos de email/documento
     if (updateData.email || updateData.document) {
-      const conflictClient = await prisma.client.findFirst({
-        where: {
-          AND: [
-            { id: { not: id } },
-            {
-              OR: [
-                updateData.email ? { email: updateData.email } : {},
-                updateData.document ? { document: updateData.document } : {}
-              ].filter(condition => Object.keys(condition).length > 0)
-            }
-          ]
+        let conflictQuery = 'SELECT id FROM clients WHERE id != ? AND ('
+        let conflictParams: any[] = [id]
+        let conditions = []
+        if (updateData.email) {
+            conditions.push('email = ?')
+            conflictParams.push(updateData.email)
         }
-      })
+        if (updateData.document) {
+            conditions.push('document = ?')
+            conflictParams.push(updateData.document)
+        }
+        conflictQuery += conditions.join(' OR ') + ')'
+        
+        const conflictClient = await db.prepare(conflictQuery).bind(...conflictParams).first()
 
       if (conflictClient) {
         return NextResponse.json(
@@ -116,14 +127,26 @@ export async function PUT(
       }
     }
 
-    const client = await prisma.client.update({
-      where: { id },
-      data: updateData
-    })
+    // Construct Update Query
+    const keys = Object.keys(updateData)
+    if (keys.length > 0) {
+        const setClause = keys.map(key => `${key} = ?`).join(', ')
+        const values = Object.values(updateData)
+        // Add updatedAt
+        const finalSetClause = setClause + ', updatedAt = ?'
+        const finalValues = [...values, new Date().toISOString(), id]
+        
+        await db.prepare(`UPDATE clients SET ${finalSetClause} WHERE id = ?`)
+            .bind(...finalValues)
+            .run()
+    }
+
+    // Fetch updated client
+    const updatedClient = await db.prepare('SELECT * FROM clients WHERE id = ?').bind(id).first()
 
     return NextResponse.json({
       message: 'Cliente atualizado com sucesso',
-      client
+      client: updatedClient
     })
 
   } catch (error) {
@@ -155,17 +178,14 @@ export async function DELETE(
     }
 
     const { id } = await params
-    // Verificar se cliente existe
-    const existingClient = await prisma.client.findUnique({
-      where: { id },
-      include: {
-        _count: {
-          select: { serviceOrders: true }
-        }
-      }
-    })
+    const db = getRequestContext().env.DB
 
-    if (!existingClient) {
+    // Verificar se cliente existe e contar ordens
+    const client: any = await db.prepare(
+        `SELECT id, (SELECT COUNT(*) FROM service_orders WHERE clientId = clients.id) as serviceOrdersCount FROM clients WHERE id = ?`
+    ).bind(id).first()
+
+    if (!client) {
       return NextResponse.json(
         { error: 'Cliente não encontrado' },
         { status: 404 }
@@ -173,16 +193,14 @@ export async function DELETE(
     }
 
     // Verificar se cliente tem ordens de serviço
-    if (existingClient._count.serviceOrders > 0) {
+    if (client.serviceOrdersCount > 0) {
       return NextResponse.json(
         { error: 'Não é possível deletar cliente com ordens de serviço' },
         { status: 400 }
       )
     }
 
-    await prisma.client.delete({
-      where: { id }
-    })
+    await db.prepare('DELETE FROM clients WHERE id = ?').bind(id).run()
 
     return NextResponse.json({
       message: 'Cliente deletado com sucesso'

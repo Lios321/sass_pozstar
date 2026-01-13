@@ -1,48 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { ServiceOrderStatus } from '@prisma/client'
 import { z } from 'zod'
+import { getRequestContext } from '@cloudflare/next-on-pages'
 
-// Interfaces para tipos de dados
-interface ServiceOrderWhereClause {
-  createdAt?: {
-    gte?: Date;
-    lte?: Date;
-  };
-  status?: ServiceOrderStatus;
-  technicianId?: string;
-  clientId?: string;
-  equipmentType?: {
-    contains: string;
-  };
-}
+export const runtime = 'edge'
 
-interface ServiceOrderForReport {
-  id: string;
-  status: ServiceOrderStatus;
-  equipmentType: string;
-  openingDate: Date | null;
-  completionDate: Date | null;
-  budgetNote: string | null;
-  client: {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-  };
-  technician: {
-    id: string;
-    name: string;
-    email: string;
-    specializations: string | null;
-  } | null;
-}
+// Enumeração de status (baseada no uso comum do projeto)
+const ServiceOrderStatus = [
+  'SEM_VER', 'ORCAMENTAR', 'APROVADO', 'ESPERANDO_PECAS', 
+  'COMPRADO', 'MELHORAR', 'TERMINADO', 'SEM_PROBLEMA',
+  'ESPERANDO_CLIENTE', 'DEVOLVIDO'
+] as const
 
 // Schema de validação para filtros de relatório
 const reportFiltersSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
-  status: z.nativeEnum(ServiceOrderStatus).optional(),
+  status: z.enum(ServiceOrderStatus as [string, ...string[]]).optional(),
   technicianId: z.string().optional(),
   clientId: z.string().optional(),
   equipmentType: z.string().optional(),
@@ -54,7 +27,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     
     // Validar parâmetros
-    const filters = reportFiltersSchema.parse({
+    // Nota: O Zod enum validation pode falhar se o status passado não estiver na lista.
+    // Como estamos migrando, vamos ser permissivos se o status vier como string
+    const filters = {
       startDate: searchParams.get('startDate') || undefined,
       endDate: searchParams.get('endDate') || undefined,
       status: searchParams.get('status') || undefined,
@@ -62,108 +37,103 @@ export async function GET(request: NextRequest) {
       clientId: searchParams.get('clientId') || undefined,
       equipmentType: searchParams.get('equipmentType') || undefined,
       format: searchParams.get('format') || 'json'
-    })
+    }
 
-    // Construir filtros para o Prisma
-    const whereClause: ServiceOrderWhereClause = {}
+    const db = getRequestContext().env.DB
+
+    // Construir query SQL
+    let query = `
+      SELECT so.*, 
+        c.name as client_name, c.email as client_email, c.phone as client_phone,
+        t.name as technician_name, t.email as technician_email, t.specializations as technician_specializations,
+        u.name as creator_name, u.email as creator_email
+      FROM service_orders so
+      LEFT JOIN clients c ON so.clientId = c.id
+      LEFT JOIN technicians t ON so.technicianId = t.id
+      LEFT JOIN users u ON so.createdById = u.id
+      WHERE 1=1
+    `
+    const params: any[] = []
 
     // Filtro por período
-    if (filters.startDate || filters.endDate) {
-      whereClause.createdAt = {}
-      if (filters.startDate) {
-        whereClause.createdAt.gte = new Date(filters.startDate)
-      }
-      if (filters.endDate) {
-        whereClause.createdAt.lte = new Date(filters.endDate)
-      }
+    if (filters.startDate) {
+      query += ` AND so.createdAt >= ?`
+      params.push(new Date(filters.startDate).toISOString())
+    }
+    if (filters.endDate) {
+      query += ` AND so.createdAt <= ?`
+      params.push(new Date(filters.endDate).toISOString())
     }
 
     // Filtros específicos
     if (filters.status) {
-      whereClause.status = filters.status
+      query += ` AND so.status = ?`
+      params.push(filters.status)
     }
     if (filters.technicianId) {
-      whereClause.technicianId = filters.technicianId
+      query += ` AND so.technicianId = ?`
+      params.push(filters.technicianId)
     }
     if (filters.clientId) {
-      whereClause.clientId = filters.clientId
+      query += ` AND so.clientId = ?`
+      params.push(filters.clientId)
     }
     if (filters.equipmentType) {
-      whereClause.equipmentType = {
-        contains: filters.equipmentType
-      }
+      query += ` AND so.equipmentType LIKE ?`
+      params.push(`%${filters.equipmentType}%`)
     }
 
-    // Buscar ordens de serviço com relacionamentos
-    const serviceOrders = await prisma.serviceOrder.findMany({
-      where: whereClause,
-      include: {
-        client: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true
-          }
-        },
-        technician: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            specializations: true
-          }
-        },
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
+    query += ` ORDER BY so.createdAt DESC`
+
+    // Buscar ordens de serviço
+    const { results } = await db.prepare(query).bind(...params).all()
+
+    // Formatar resultados para ServiceOrderForReport
+    const serviceOrders = results.map((so: any) => ({
+      ...so,
+      client: {
+        id: so.clientId,
+        name: so.client_name,
+        email: so.client_email,
+        phone: so.client_phone
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    })
+      technician: so.technicianId ? {
+        id: so.technicianId,
+        name: so.technician_name,
+        email: so.technician_email,
+        specializations: so.technician_specializations
+      } : null,
+      createdBy: so.createdById ? {
+        id: so.createdById,
+        name: so.creator_name,
+        email: so.creator_email
+      } : null
+    }))
 
     // Calcular estatísticas
     const stats = {
       total: serviceOrders.length,
-      byStatus: Object.values(ServiceOrderStatus).reduce((acc: Record<ServiceOrderStatus, number>, status) => {
-        acc[status] = serviceOrders.filter((so: ServiceOrderForReport) => so.status === status).length
+      byStatus: ServiceOrderStatus.reduce((acc: Record<string, number>, status) => {
+        acc[status] = serviceOrders.filter((so: any) => so.status === status).length
         return acc
-      }, {} as Record<ServiceOrderStatus, number>),
-      byEquipmentType: serviceOrders.reduce((acc: Record<string, number>, so: ServiceOrderForReport) => {
-        acc[so.equipmentType] = (acc[so.equipmentType] || 0) + 1
+      }, {} as Record<string, number>),
+      byEquipmentType: serviceOrders.reduce((acc: Record<string, number>, so: any) => {
+        const type = so.equipmentType || 'Outros'
+        acc[type] = (acc[type] || 0) + 1
         return acc
       }, {} as Record<string, number>),
       averageCompletionTime: calculateAverageCompletionTime(serviceOrders),
       totalRevenue: calculateTotalRevenue(serviceOrders)
     }
 
-    // Buscar técnicos e clientes para filtros
-    const technicians = await prisma.technician.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true
-      },
-      orderBy: {
-        name: 'asc'
-      }
-    })
+    // Buscar técnicos e clientes para filtros (metadados)
+    const { results: technicians } = await db.prepare(`
+      SELECT id, name, email FROM technicians ORDER BY name ASC
+    `).all()
 
-    const clients = await prisma.client.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true
-      },
-      orderBy: {
-        name: 'asc'
-      }
-    })
+    const { results: clients } = await db.prepare(`
+      SELECT id, name, email FROM clients ORDER BY name ASC
+    `).all()
 
     const reportData = {
       filters: filters,
@@ -206,7 +176,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Função auxiliar para calcular tempo médio de conclusão
-function calculateAverageCompletionTime(serviceOrders: ServiceOrderForReport[]): number | null {
+function calculateAverageCompletionTime(serviceOrders: any[]): number | null {
   const completedOrders = serviceOrders.filter(so => 
     so.openingDate && so.completionDate
   )
@@ -226,14 +196,17 @@ function calculateAverageCompletionTime(serviceOrders: ServiceOrderForReport[]):
 }
 
 // Função auxiliar para calcular receita total (baseado em budgetNote)
-function calculateTotalRevenue(serviceOrders: ServiceOrderForReport[]): number {
+function calculateTotalRevenue(serviceOrders: any[]): number {
   return serviceOrders.reduce((acc, so) => {
     if (so.budgetNote && so.completionDate) {
       // Extrair valor do budgetNote (formato: "R$ 250,00")
       const match = so.budgetNote.match(/R\$\s*([\d.,]+)/)
       if (match) {
-        const value = parseFloat(match[1].replace(',', '.'))
-        return acc + value
+        // Tratar formato brasileiro: 1.250,00 -> 1250.00
+        // Remover pontos de milhar, substituir vírgula decimal por ponto
+        const valueStr = match[1].replace(/\./g, '').replace(',', '.')
+        const value = parseFloat(valueStr)
+        return acc + (isNaN(value) ? 0 : value)
       }
     }
     return acc

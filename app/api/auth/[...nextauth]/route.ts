@@ -1,7 +1,9 @@
 import NextAuth, { type NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import { prisma } from '@/lib/prisma'
 import { verifyPassword } from '@/lib/auth'
+import { getRequestContext } from '@cloudflare/next-on-pages'
+
+export const runtime = 'edge'
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -17,9 +19,8 @@ export const authOptions: NextAuthOptions = {
             return null
           }
 
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email }
-          })
+          const db = getRequestContext().env.DB
+          const user = await db.prepare('SELECT * FROM users WHERE email = ?').bind(credentials.email).first<any>()
 
           console.log('Auth authorize attempt', {
             email: credentials.email,

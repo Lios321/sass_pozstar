@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ReceiptService } from '@/lib/receipt-service'
-import { ReceiptDeliveryMethod } from '@prisma/client'
+import { ReceiptService, ReceiptDeliveryMethod } from '@/lib/receipt-service'
 import { z } from 'zod'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+
+export const runtime = 'edge';
 
 const resendSchema = z.object({
   method: z.enum(['EMAIL', 'WHATSAPP', 'BOTH']),
