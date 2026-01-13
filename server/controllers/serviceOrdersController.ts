@@ -40,7 +40,7 @@ export const serviceOrdersController = {
   async create(request: NextRequest) {
     const session = await requireAuth(request as unknown as Request)
     const body = await request.json()
-    const serviceOrder = await serviceOrdersService.create(body, session.user.id as string)
+    const serviceOrder = await serviceOrdersService.create(body, (session.user as any).id as string)
 
     try {
       await NotificationService.createNewServiceOrderNotification(serviceOrder.id)

@@ -6,7 +6,7 @@ import UsersClient from './UsersClient'
 export default async function UsersPage() {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
-  if (session.user.role !== 'ADMIN') redirect('/dashboard')
+  if ((session.user as any)?.role !== 'ADMIN') redirect('/dashboard')
 
   return (
     <div className="space-y-6">

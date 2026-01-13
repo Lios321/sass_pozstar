@@ -38,7 +38,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { data: session } = useSession();
 
-  const isAdmin = session?.user?.role === 'ADMIN';
+  const isAdmin = (session?.user as any)?.role === 'ADMIN';
   const navItems = isAdmin
     ? [
         ...navigation,

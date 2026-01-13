@@ -6,7 +6,7 @@ import { hashPassword } from '@/lib/auth'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
-  if (!session || !session.user?.id) {
+  if (!session || !(session.user as any)?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const userId = (session.user as any).id as string
@@ -25,7 +25,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   const session = await getServerSession(authOptions)
-  if (!session || !session.user?.id) {
+  if (!session || !(session.user as any)?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const userId = (session.user as any).id as string
