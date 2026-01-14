@@ -1,14 +1,34 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
-import { redirect } from 'next/navigation'
+"use client"
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import UsersClient from './UsersClient'
 
-export const runtime = 'edge'
+export default function UsersPage() {
+  const { status, data: session } = useSession()
+  const router = useRouter()
 
-export default async function UsersPage() {
-  const session = await getServerSession(authOptions)
-  if (!session) redirect('/login')
-  if ((session.user as any)?.role !== 'ADMIN') redirect('/dashboard')
+  useEffect(() => {
+    if (status === 'loading') return
+
+    if (!session) {
+      router.replace('/login')
+      return
+    }
+
+    if ((session.user as any)?.role !== 'ADMIN') {
+      router.replace('/dashboard')
+    }
+  }, [status, session, router])
+
+  if (status === 'loading') {
+    return <div className="p-4">Carregando...</div>
+  }
+
+  if (!session || (session.user as any)?.role !== 'ADMIN') {
+    return null
+  }
 
   return (
     <div className="space-y-6">
