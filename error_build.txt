@@ -1,0 +1,78 @@
+2026-01-14T21:15:36.733Z	Initializing build environment...
+2026-01-14T21:15:39.293Z	Success: Finished initializing build environment
+2026-01-14T21:15:39.633Z	Cloning repository...
+2026-01-14T21:15:41.074Z	Detected the following tools from environment: npm@10.9.2, nodejs@22.16.0
+2026-01-14T21:15:41.076Z	Restoring from dependencies cache
+2026-01-14T21:15:41.078Z	Restoring from build output cache
+2026-01-14T21:15:41.209Z	Installing project dependencies: npm clean-install --progress=false
+2026-01-14T21:15:48.623Z	npm warn deprecated path-match@1.2.4: This package is archived and no longer maintained. For support, visit https://github.com/expressjs/express/discussions
+2026-01-14T21:15:49.897Z	npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+2026-01-14T21:15:53.336Z	npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+2026-01-14T21:15:53.336Z	npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+2026-01-14T21:15:54.106Z	npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+2026-01-14T21:15:55.942Z	npm warn deprecated @cloudflare/next-on-pages@1.13.16: Please use the OpenNext adapter instead: https://opennext.js.org/cloudflare
+2026-01-14T21:16:15.304Z	npm warn deprecated next@15.5.2: This version has a security vulnerability. Please upgrade to a patched version. See https://nextjs.org/blog/CVE-2025-66478 for more details.
+2026-01-14T21:16:30.828Z	
+2026-01-14T21:16:30.828Z	added 1193 packages, and audited 1194 packages in 49s
+2026-01-14T21:16:30.828Z	
+2026-01-14T21:16:30.828Z	207 packages are looking for funding
+2026-01-14T21:16:30.828Z	  run `npm fund` for details
+2026-01-14T21:16:30.948Z	
+2026-01-14T21:16:30.948Z	26 vulnerabilities (2 low, 13 moderate, 7 high, 4 critical)
+2026-01-14T21:16:30.949Z	
+2026-01-14T21:16:30.949Z	To address issues that do not require attention, run:
+2026-01-14T21:16:30.949Z	  npm audit fix
+2026-01-14T21:16:30.949Z	
+2026-01-14T21:16:30.949Z	To address all issues possible (including breaking changes), run:
+2026-01-14T21:16:30.949Z	  npm audit fix --force
+2026-01-14T21:16:30.949Z	
+2026-01-14T21:16:30.949Z	Some issues need review, and may require choosing
+2026-01-14T21:16:30.949Z	a different dependency.
+2026-01-14T21:16:30.949Z	
+2026-01-14T21:16:30.949Z	Run `npm audit` for details.
+2026-01-14T21:16:31.279Z	Executing user build command: npm run build
+2026-01-14T21:16:31.561Z	
+2026-01-14T21:16:31.562Z	> sass_pozstar@0.1.0 build
+2026-01-14T21:16:31.562Z	> next build
+2026-01-14T21:16:31.562Z	
+2026-01-14T21:16:32.530Z	⚠ No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache
+2026-01-14T21:16:32.535Z	Attention: Next.js now collects completely anonymous telemetry regarding usage.
+2026-01-14T21:16:32.535Z	This information is used to shape Next.js' roadmap and prioritize features.
+2026-01-14T21:16:32.536Z	You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+2026-01-14T21:16:32.536Z	https://nextjs.org/telemetry
+2026-01-14T21:16:32.536Z	
+2026-01-14T21:16:32.611Z	   ▲ Next.js 15.5.2
+2026-01-14T21:16:32.611Z	   - Experiments (use with caution):
+2026-01-14T21:16:32.611Z	     · optimizePackageImports
+2026-01-14T21:16:32.611Z	
+2026-01-14T21:16:32.722Z	   Creating an optimized production build ...
+2026-01-14T21:16:48.683Z	Failed to compile.
+2026-01-14T21:16:48.683Z	
+2026-01-14T21:16:48.684Z	app/layout.tsx
+2026-01-14T21:16:48.684Z	An error occurred in `next/font`.
+2026-01-14T21:16:48.685Z	
+2026-01-14T21:16:48.685Z	Error: Cannot find module '../lightningcss.linux-x64-gnu.node'
+2026-01-14T21:16:48.685Z	Require stack:
+2026-01-14T21:16:48.685Z	- /opt/buildhome/repo/node_modules/lightningcss/node/index.js
+2026-01-14T21:16:48.685Z	- /opt/buildhome/repo/node_modules/@tailwindcss/node/dist/index.js
+2026-01-14T21:16:48.685Z	- /opt/buildhome/repo/node_modules/@tailwindcss/postcss/dist/index.js
+2026-01-14T21:16:48.685Z	- /opt/buildhome/repo/node_modules/next/dist/build/webpack/config/blocks/css/plugins.js
+2026-01-14T21:16:48.685Z	- /opt/buildhome/repo/node_modules/next/dist/build/webpack/config/blocks/css/index.js
+2026-01-14T21:16:48.685Z	- /opt/buildhome/repo/node_modules/next/dist/build/webpack/config/index.js
+2026-01-14T21:16:48.685Z	- /opt/buildhome/repo/node_modules/next/dist/build/webpack-config.js
+2026-01-14T21:16:48.685Z	- /opt/buildhome/repo/node_modules/next/dist/build/webpack-build/impl.js
+2026-01-14T21:16:48.685Z	- /opt/buildhome/repo/node_modules/next/dist/compiled/jest-worker/processChild.js
+2026-01-14T21:16:48.685Z	    at Function.<anonymous> (node:internal/modules/cjs/loader:1401:15)
+2026-01-14T21:16:48.685Z	    at /opt/buildhome/repo/node_modules/next/dist/server/require-hook.js:57:36
+2026-01-14T21:16:48.685Z	    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+2026-01-14T21:16:48.685Z	    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+2026-01-14T21:16:48.685Z	    at Function._load (node:internal/modules/cjs/loader:1211:37)
+2026-01-14T21:16:48.685Z	    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+2026-01-14T21:16:48.685Z	    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+2026-01-14T21:16:48.686Z	    at Module.<anonymous> (node:internal/modules/cjs/loader:1487:12)
+2026-01-14T21:16:48.686Z	    at mod.require (/opt/buildhome/repo/node_modules/next/dist/server/require-hook.js:68:28)
+2026-01-14T21:16:48.686Z	    at require (node:internal/modules/helpers:135:16)
+2026-01-14T21:16:48.686Z	
+2026-01-14T21:16:48.690Z	
+2026-01-14T21:16:48.690Z	> Build failed because of webpack errors
+2026-01-14T21:16:48.734Z	Failed: error occurred while running build command
