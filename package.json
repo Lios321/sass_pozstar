@@ -52,11 +52,7 @@
   },
   "devDependencies": {
     "@cloudflare/next-on-pages": "^1.13.16",
-<<<<<<< Updated upstream
-    "@cloudflare/workers-types": "^4.20260113.0",
-=======
     "@cloudflare/workers-types": "^4.20260114.0",
->>>>>>> Stashed changes
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
@@ -75,11 +71,7 @@
     "jest-environment-jsdom": "^30.2.0",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.4",
-<<<<<<< Updated upstream
-    "typescript": "^5"
-=======
     "typescript": "^5",
     "wrangler": "^4.59.1"
->>>>>>> Stashed changes
   }
 }
