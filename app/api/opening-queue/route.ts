@@ -3,6 +3,8 @@ import { getRequestContext } from "@cloudflare/next-on-pages"
 
 export const runtime = 'edge'
 
+export const runtime = 'edge';
+
 export async function GET() {
   const db = getRequestContext().env.DB
   const { results } = await db.prepare(`
@@ -26,6 +28,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+<<<<<<< Updated upstream
     const body = await req.json()
     const db = getRequestContext().env.DB
     const id = crypto.randomUUID()
@@ -35,6 +38,11 @@ export async function POST(req: Request) {
     const data = {
       id,
       clientId: body?.clientId || null,
+=======
+    const body = await req.json() as any
+    const created = await enqueueItem({
+      clientId: body?.clientId,
+>>>>>>> Stashed changes
       clientName: String(body?.clientName || ""),
       contactPhone: String(body?.contactPhone || ""),
       equipmentType: String(body?.equipmentType || ""),

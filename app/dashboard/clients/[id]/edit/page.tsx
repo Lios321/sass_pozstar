@@ -101,7 +101,7 @@ export default function EditClientPage() {
           throw new Error('Erro ao carregar dados do cliente');
         }
 
-        const data = await response.json();
+        const data: any = await response.json();
         const client: Client = data.client;
 
         setFormData({
@@ -386,7 +386,7 @@ export default function EditClientPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData: any = await response.json();
         throw new Error(errorData.error || 'Erro ao atualizar cliente');
       }
 

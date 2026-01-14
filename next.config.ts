@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // output: "standalone", // Disabled for Cloudflare Pages deployment
   eslint: {
     // Consider enabling this in CI to fail builds on lint issues
     ignoreDuringBuilds: true,

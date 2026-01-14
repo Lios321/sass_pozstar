@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+<<<<<<< Updated upstream
 import { getRequestContext } from '@cloudflare/next-on-pages'
+=======
+import { getDb } from '@/lib/db/drizzle'
+import { notifications } from '@/lib/db/schema'
+import { eq, and, desc, count } from 'drizzle-orm'
+>>>>>>> Stashed changes
 import { z } from 'zod'
+import { v4 as uuidv4 } from 'uuid'
 
+<<<<<<< Updated upstream
 export const runtime = 'edge'
+=======
+export const runtime = 'edge';
+>>>>>>> Stashed changes
 
 const createNotificationSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
@@ -24,6 +35,7 @@ export async function GET(request: NextRequest) {
     const isRead = searchParams.get('isRead')
     const type = searchParams.get('type')
 
+<<<<<<< Updated upstream
     const offset = (page - 1) * limit
     const db = getRequestContext().env.DB
 
@@ -89,9 +101,59 @@ export async function GET(request: NextRequest) {
       client: row.client_id ? { id: row.client_id, name: row.client_name, email: row.client_email } : null,
       serviceOrder: row.so_id ? { id: row.so_id, orderNumber: row.so_orderNumber, status: row.so_status } : null
     }))
+=======
+    const skip = (page - 1) * limit
+    const db = await getDb()
+
+    // Construir filtros
+    const conditions = []
+    
+    if (userId) conditions.push(eq(notifications.userId, userId))
+    if (clientId) conditions.push(eq(notifications.clientId, clientId))
+    if (isRead !== null) conditions.push(eq(notifications.isRead, isRead === 'true'))
+    if (type && ['INFO', 'SUCCESS', 'WARNING', 'ERROR', 'STATUS_UPDATE'].includes(type)) {
+      conditions.push(eq(notifications.type, type))
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined
+
+    // Buscar notificações
+    const notificationsData = await db.query.notifications.findMany({
+      where: whereClause,
+      with: {
+        user: {
+          columns: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        client: {
+          columns: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        serviceOrder: {
+          columns: {
+            id: true,
+            orderNumber: true,
+            status: true
+          }
+        }
+      },
+      orderBy: [desc(notifications.createdAt)],
+      limit: limit,
+      offset: skip
+    })
+
+    const totalResult = await db.select({ count: count() }).from(notifications).where(whereClause)
+    const total = totalResult[0]?.count || 0
+>>>>>>> Stashed changes
 
     return NextResponse.json({
-      notifications,
+      notifications: notificationsData,
       pagination: {
         page,
         limit,
@@ -119,6 +181,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Destinatário obrigatório (userId ou clientId)' }, { status: 400 })
     }
 
+<<<<<<< Updated upstream
     const db = getRequestContext().env.DB
     const id = crypto.randomUUID()
     const now = new Date().toISOString()
@@ -146,6 +209,50 @@ export async function POST(request: NextRequest) {
         isRead: notification.isRead === 1
     })
 
+=======
+    const db = await getDb()
+
+    // Criar notificação
+    const [notification] = await db.insert(notifications)
+      .values({
+        id: uuidv4(),
+        ...data,
+        isRead: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning()
+
+    // Fetch related data to return consistent response
+    const notificationWithRelations = await db.query.notifications.findFirst({
+      where: eq(notifications.id, notification.id),
+      with: {
+        user: {
+          columns: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        client: {
+          columns: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        serviceOrder: {
+          columns: {
+            id: true,
+            orderNumber: true,
+            status: true
+          }
+        }
+      }
+    })
+
+    return NextResponse.json(notificationWithRelations, { status: 201 })
+>>>>>>> Stashed changes
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

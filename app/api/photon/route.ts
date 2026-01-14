@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 
+<<<<<<< Updated upstream
 export const runtime = 'edge'
+=======
+export const runtime = 'edge';
+>>>>>>> Stashed changes
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);

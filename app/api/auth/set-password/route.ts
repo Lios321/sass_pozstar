@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
+<<<<<<< Updated upstream
+=======
+import { getDb } from '@/lib/db/drizzle'
+import { users } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
+>>>>>>> Stashed changes
 import { hashPassword } from '@/lib/auth'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
 import { getRequestContext } from '@cloudflare/next-on-pages'
 
 export const runtime = 'edge'
+
+export const runtime = 'edge';
 
 const schema = z.object({
   token: z.string().min(10),
@@ -32,23 +40,35 @@ export async function POST(request: NextRequest) {
     if (!payload || payload.purpose !== 'set_password' || !payload.email) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 400 })
     }
+<<<<<<< Updated upstream
 
     const db = getRequestContext().env.DB
     const user = await db.prepare('SELECT * FROM users WHERE email = ?').bind(String(payload.email)).first<any>()
 
+=======
+    
+    const db = await getDb()
+    const user = await db.query.users.findFirst({ where: eq(users.email, String(payload.email)) })
+>>>>>>> Stashed changes
     if (!user) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
     }
     const hashed = await hashPassword(password)
+<<<<<<< Updated upstream
     
     await db.prepare('UPDATE users SET password = ?, updatedAt = ? WHERE id = ?')
       .bind(hashed, new Date().toISOString(), user.id)
       .run()
 
+=======
+    await db.update(users)
+      .set({ password: hashed, updatedAt: new Date() })
+      .where(eq(users.id, user.id))
+      
+>>>>>>> Stashed changes
     return NextResponse.json({ message: 'Senha definida com sucesso' })
   } catch (error) {
     console.error('Erro ao definir senha:', error)
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
   }
 }
-

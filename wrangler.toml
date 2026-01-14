@@ -1,0 +1,9 @@
+name = "sass-pozstar"
+compatibility_date = "2024-04-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pozstar_db"
+database_id = "bc9087b7-693c-49d8-b491-185e83509186"

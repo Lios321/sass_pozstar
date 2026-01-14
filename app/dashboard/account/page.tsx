@@ -21,7 +21,7 @@ export default function AccountPage() {
       try {
         const res = await fetch('/api/account')
         if (res.ok) {
-          const json = await res.json()
+          const json: any = await res.json()
           setName(json.data.name || '')
           setEmail(json.data.email || '')
         } else {
@@ -49,7 +49,7 @@ export default function AccountPage() {
         }),
       })
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}))
+        const j: any = await res.json().catch(() => ({}))
         throw new Error(j.error || 'Falha ao salvar alterações')
       }
       setMessage('Dados atualizados com sucesso')

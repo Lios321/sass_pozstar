@@ -64,7 +64,7 @@ export default function NovaOrdemServicoPage() {
           try {
             const res = await fetch(`/api/clients/${clientId}`)
             if (res.ok) {
-              const client = await res.json()
+              const client: any = await res.json()
               handleClientSelect({
                 id: client.id,
                 name: client.name,
@@ -147,11 +147,11 @@ export default function NovaOrdemServicoPage() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorData: any = await response.json()
         throw new Error(errorData.error || 'Erro ao criar ordem de serviço')
       }
 
-      const responseData = await response.json()
+      const responseData: any = await response.json()
       setCreatedOrderId(responseData.serviceOrder.id)
       // Mensagem visual removida; download será disparado automaticamente
     } catch (err) {
@@ -175,7 +175,7 @@ export default function NovaOrdemServicoPage() {
         let errorMessage = 'Erro ao baixar comprovante'
         try {
           if (contentType.includes('application/json')) {
-            const data = await response.json()
+            const data: any = await response.json()
             errorMessage = data?.reason || data?.message || data?.error || errorMessage
           } else {
             const text = await response.text()

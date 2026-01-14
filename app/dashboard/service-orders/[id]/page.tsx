@@ -83,7 +83,7 @@ export default function ServiceOrderDetailsPage() {
         throw new Error('Erro ao carregar ordem de serviço')
       }
       
-      const data = await response.json()
+      const data: any = await response.json()
       setServiceOrder(data)
     } catch (error) {
       console.error('Erro ao carregar ordem de serviço:', error)
@@ -108,7 +108,7 @@ export default function ServiceOrderDetailsPage() {
         } else {
           try {
             if (contentType.includes('application/json')) {
-              const data = await response.json()
+              const data: any = await response.json()
               errorMessage = data?.error || errorMessage
             } else {
               const text = await response.text()
@@ -157,7 +157,7 @@ export default function ServiceOrderDetailsPage() {
         } else {
           try {
             if (contentType.includes('application/json')) {
-              const data = await response.json()
+              const data: any = await response.json()
               errorMessage = data?.error || data?.reason || errorMessage
             } else {
               const text = await response.text()
@@ -206,7 +206,7 @@ export default function ServiceOrderDetailsPage() {
         throw new Error('Erro ao reenviar comprovante')
       }
       
-      const data = await response.json()
+      const data: any = await response.json()
       toast.success(data.message)
       
 

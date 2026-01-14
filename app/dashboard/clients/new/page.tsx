@@ -348,7 +348,7 @@ export default function NewClientPage() {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const data: any = await response.json();
         const created = data.client;
         Toast.success('Cliente criado com sucesso!');
         if (returnTo) {
@@ -359,7 +359,7 @@ export default function NewClientPage() {
           router.push('/dashboard/clients?success=created');
         }
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Erro ao salvar cliente' }));
+        const errorData: any = await response.json().catch(() => ({ error: 'Erro ao salvar cliente' }));
         const msg = String(errorData?.error || 'Erro ao salvar cliente');
         if (msg.includes('Cliente já existe')) {
           setErrors(prev => ({ ...prev, email: 'Este email já está cadastrado', document: 'Este documento já está cadastrado' }));

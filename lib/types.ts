@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 export const ServiceOrderStatusValues = [
   'SEM_VER', 'ORCAMENTAR', 'APROVADO', 'ESPERANDO_PECAS', 'COMPRADO',
   'MELHORAR', 'TERMINADO', 'SEM_PROBLEMA', 'SEM_CONSERTO', 'DEVOLVER',
@@ -5,3 +6,37 @@ export const ServiceOrderStatusValues = [
 ] as const;
 
 export type ServiceOrderStatus = typeof ServiceOrderStatusValues[number];
+=======
+export type ServiceOrderStatus =
+  | 'SEM_VER'
+  | 'ORCAMENTAR'
+  | 'APROVADO'
+  | 'ESPERANDO_PECAS'
+  | 'COMPRADO'
+  | 'MELHORAR'
+  | 'TERMINADO'
+  | 'SEM_PROBLEMA'
+  | 'SEM_CONSERTO'
+  | 'DEVOLVER'
+  | 'DEVOLVIDO'
+  | 'DESCARTE'
+  | 'VENDIDO'
+  | 'ESPERANDO_CLIENTE';
+
+export const ServiceOrderStatusValues = {
+  SEM_VER: 'SEM_VER',
+  ORCAMENTAR: 'ORCAMENTAR',
+  APROVADO: 'APROVADO',
+  ESPERANDO_PECAS: 'ESPERANDO_PECAS',
+  COMPRADO: 'COMPRADO',
+  MELHORAR: 'MELHORAR',
+  TERMINADO: 'TERMINADO',
+  SEM_PROBLEMA: 'SEM_PROBLEMA',
+  SEM_CONSERTO: 'SEM_CONSERTO',
+  DEVOLVER: 'DEVOLVER',
+  DEVOLVIDO: 'DEVOLVIDO',
+  DESCARTE: 'DESCARTE',
+  VENDIDO: 'VENDIDO',
+  ESPERANDO_CLIENTE: 'ESPERANDO_CLIENTE',
+} as const;
+>>>>>>> Stashed changes

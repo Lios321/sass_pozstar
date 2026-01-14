@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
+    "pages:build": "npx @cloudflare/next-on-pages",
     "start": "next start",
     "lint": "eslint",
     "test": "jest",
@@ -24,9 +25,11 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/nodemailer": "^7.0.2",
+    "@types/uuid": "^10.0.0",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.1",
     "framer-motion": "^12.23.22",
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^3.0.3",
@@ -43,12 +46,17 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
     "use-places-autocomplete": "^4.0.1",
+    "uuid": "^13.0.0",
     "xlsx": "^0.18.5",
     "zod": "^4.1.11"
   },
   "devDependencies": {
     "@cloudflare/next-on-pages": "^1.13.16",
+<<<<<<< Updated upstream
     "@cloudflare/workers-types": "^4.20260113.0",
+=======
+    "@cloudflare/workers-types": "^4.20260114.0",
+>>>>>>> Stashed changes
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
@@ -60,12 +68,18 @@
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.8",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.4",
+<<<<<<< Updated upstream
     "typescript": "^5"
+=======
+    "typescript": "^5",
+    "wrangler": "^4.59.1"
+>>>>>>> Stashed changes
   }
 }

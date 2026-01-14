@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import { ReceiptGenerator } from './receipt-generator';
 import type { BudgetItem } from './budget-generator';
 import { getRequestContext } from '@cloudflare/next-on-pages';
@@ -7,6 +8,21 @@ export const ReceiptDeliveryMethod = {
   WHATSAPP: 'WHATSAPP',
 } as const;
 export type ReceiptDeliveryMethod = (typeof ReceiptDeliveryMethod)[keyof typeof ReceiptDeliveryMethod];
+=======
+import { getDb } from '@/lib/db/drizzle';
+import { serviceOrders, receiptDeliveries } from '@/lib/db/schema';
+import { eq, desc } from 'drizzle-orm';
+import { ReceiptGenerator } from './receipt-generator';
+import type { BudgetItem } from './budget-generator';
+// import * as fs from 'fs'; // Removed for Edge compatibility
+// import * as path from 'path'; // Removed for Edge compatibility
+import { v4 as uuidv4 } from 'uuid';
+
+export enum ReceiptDeliveryMethod {
+  EMAIL = 'EMAIL',
+  WHATSAPP = 'WHATSAPP'
+}
+>>>>>>> Stashed changes
 
 interface ServiceOrderWithRelations {
   id: string;
@@ -20,7 +36,7 @@ interface ServiceOrderWithRelations {
   technicalExplanation?: string | null;
   receivedAccessories?: string | null;
   arrivalDate: Date | null;
-  createdAt: Date;
+  createdAt: Date | null;
   budgetNote?: string | null;
   budgetItems?: any | null;
   createdBy?: {
@@ -77,10 +93,11 @@ export class ReceiptService {
         reportedDefect: serviceOrder.reportedDefect,
         receivedAccessories: serviceOrder.receivedAccessories || undefined,
         arrivalDate: serviceOrder.arrivalDate || new Date(),
-        createdAt: serviceOrder.createdAt,
+        createdAt: serviceOrder.createdAt || new Date(),
         createdBy: serviceOrder.createdBy || undefined,
       });
 
+<<<<<<< Updated upstream
       // Atualiza o banco para marcar o comprovante como gerado
       // Nota: Não salvamos em disco no Edge/Workers. Apenas registramos que foi gerado.
       const db = getRequestContext().env.DB;
@@ -95,6 +112,33 @@ export class ReceiptService {
         receiptMetadata.filename, // Apenas o nome do arquivo, não o caminho completo
         serviceOrderId
       ).run();
+=======
+      // Salvar PDF no disco (storage/receipts ou diretório configurado)
+      /*
+      // Disabled for Edge compatibility - cannot write to filesystem
+      try {
+        const receiptsBaseDir = process.env.RECEIPTS_DIR || path.join(process.cwd(), 'storage', 'receipts');
+        fs.mkdirSync(receiptsBaseDir, { recursive: true });
+        const safeFileName = receiptMetadata.filename.replace(/[\\\/:*?"<>|]/g, '_');
+        const fullPath = path.join(receiptsBaseDir, safeFileName);
+        fs.writeFileSync(fullPath, receiptMetadata.buffer);
+        console.log(`💾 Comprovante salvo em: ${fullPath}`);
+      } catch (fileError) {
+        console.error('❌ Erro ao salvar comprovante no disco:', fileError);
+      }
+      */
+      console.log(`ℹ️ Comprovante gerado em memória (não salvo em disco no ambiente Edge)`);
+
+      // Atualiza o banco para marcar o comprovante como gerado
+      const db = getDb();
+      await db.update(serviceOrders)
+        .set({
+          receiptGenerated: true,
+          receiptGeneratedAt: receiptMetadata.generatedAt,
+          receiptPath: receiptMetadata.filename,
+        })
+        .where(eq(serviceOrders.id, serviceOrderId));
+>>>>>>> Stashed changes
 
       console.log(`✅ Comprovante marcado como gerado para OS: ${serviceOrderId}`);
     } catch (error) {
@@ -107,6 +151,7 @@ export class ReceiptService {
    * Busca uma ordem de serviço com todos os relacionamentos necessários
    */
   private static async getServiceOrderWithRelations(serviceOrderId: string): Promise<ServiceOrderWithRelations | null> {
+<<<<<<< Updated upstream
     const db = getRequestContext().env.DB;
     
     // Consulta principal com JOINs
@@ -161,6 +206,35 @@ export class ReceiptService {
         complement: so.client_complement as string | null,
       },
     };
+=======
+    const db = getDb();
+    const result = await db.query.serviceOrders.findFirst({
+      where: eq(serviceOrders.id, serviceOrderId),
+      with: {
+        client: {
+          columns: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+            document: true,
+            address: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            complement: true,
+          },
+        },
+        createdBy: {
+          columns: {
+            name: true,
+          },
+        },
+      },
+    });
+    
+    return result as ServiceOrderWithRelations | null;
+>>>>>>> Stashed changes
   }
 
   /**
@@ -199,7 +273,7 @@ export class ReceiptService {
         reportedDefect: serviceOrder.reportedDefect,
         receivedAccessories: serviceOrder.receivedAccessories || undefined,
         arrivalDate: serviceOrder.arrivalDate || new Date(),
-        createdAt: serviceOrder.createdAt,
+        createdAt: serviceOrder.createdAt || new Date(),
         createdBy: serviceOrder.createdBy || undefined,
       });
 
@@ -227,12 +301,20 @@ export class ReceiptService {
    * Busca o histórico de entregas de comprovantes para uma OS
    */
   static async getDeliveryHistory(serviceOrderId: string) {
+<<<<<<< Updated upstream
     const db = getRequestContext().env.DB;
     const { results } = await db.prepare(`
       SELECT * FROM receipt_deliveries 
       WHERE serviceOrderId = ? 
       ORDER BY createdAt DESC
     `).bind(serviceOrderId).all();
+=======
+    const db = getDb();
+    const deliveries = await db.query.receiptDeliveries.findMany({
+      where: eq(receiptDeliveries.serviceOrderId, serviceOrderId),
+      orderBy: [desc(receiptDeliveries.createdAt)],
+    });
+>>>>>>> Stashed changes
 
     return results;
   }
@@ -265,7 +347,11 @@ export class ReceiptService {
         }
       }
 
+      const db = getDb();
+      const deliveryId = uuidv4();
+
       // Criar registro de entrega
+<<<<<<< Updated upstream
       const db = getRequestContext().env.DB;
       const deliveryId = crypto.randomUUID();
       
@@ -294,6 +380,27 @@ export class ReceiptService {
         new Date().toISOString(),
         deliveryId
       ).run();
+=======
+      const delivery = await db.insert(receiptDeliveries).values({
+        id: deliveryId,
+        serviceOrderId,
+        deliveryMethod,
+        recipientEmail,
+        recipientPhone,
+        status: 'PENDING',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }).returning();
+
+      // Simular envio (aqui você integraria com serviços reais de email/WhatsApp)
+      // Por enquanto, vamos marcar como enviado com sucesso
+      await db.update(receiptDeliveries)
+        .set({
+          status: 'SENT',
+          sentAt: new Date(),
+        })
+        .where(eq(receiptDeliveries.id, deliveryId));
+>>>>>>> Stashed changes
 
       return true;
     } catch (error) {
@@ -301,6 +408,7 @@ export class ReceiptService {
       
       // Tentar criar registro de falha se possível
       try {
+<<<<<<< Updated upstream
         const db = getRequestContext().env.DB;
         const deliveryId = crypto.randomUUID();
         await db.prepare(`
@@ -315,6 +423,18 @@ export class ReceiptService {
           new Date().toISOString(),
           new Date().toISOString()
         ).run();
+=======
+        const db = getDb();
+        await db.insert(receiptDeliveries).values({
+          id: uuidv4(),
+          serviceOrderId,
+          deliveryMethod,
+          status: 'FAILED',
+          errorMessage: error instanceof Error ? error.message : 'Erro desconhecido',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+>>>>>>> Stashed changes
       } catch (dbError) {
         console.error('Erro ao registrar falha:', dbError);
       }
@@ -322,6 +442,80 @@ export class ReceiptService {
       return false;
     }
   }
+<<<<<<< Updated upstream
+=======
+  // === Orçamento ===
+  // Gera e salva o PDF do orçamento com base nos budgetItems
+  static async generateBudgetForOrcamentar(serviceOrderId: string): Promise<void> {
+    try {
+      const so = await this.getServiceOrderWithRelations(serviceOrderId);
+      if (!so) throw new Error('Ordem de serviço não encontrada');
+
+      // Normalizar itens de orçamento
+      const rawItems = Array.isArray(so.budgetItems) ? so.budgetItems : [];
+      const items: BudgetItem[] = rawItems.map((i: any): BudgetItem => ({
+        type: i?.type === 'SERVICO' ? 'SERVICO' : 'PECA',
+        title: String(i?.title ?? ''),
+        quantity: Number(i?.quantity ?? 0),
+        unitCost: i?.unitCost != null ? Number(i.unitCost) : undefined,
+        unitPrice: Number(i?.unitPrice ?? 0),
+        estimatedHours: i?.estimatedHours != null ? Number(i.estimatedHours) : undefined,
+      }));
+
+      // Evitar gerar orçamento vazio
+      if (!items.length) {
+        console.log('ℹ️ OS sem itens de orçamento; pulando geração de orçamento.');
+        return;
+      }
+
+      const { BudgetGenerator } = await import('./budget-generator');
+      const budgetMetadata = await BudgetGenerator.generateBudget({
+        id: so.id,
+        orderNumber: so.orderNumber,
+        client: {
+          name: so.client.name,
+          phone: so.client.phone,
+          email: so.client.email || undefined,
+          document: so.client.document || undefined,
+          address: so.client.address || undefined,
+          city: so.client.city || undefined,
+          state: so.client.state || undefined,
+          zipCode: so.client.zipCode || undefined,
+          complement: so.client.complement || undefined,
+        },
+        equipmentType: so.equipmentType,
+        brand: so.brand,
+        model: so.model,
+        serialNumber: so.serialNumber || undefined,
+        color: so.color || undefined,
+        reportedDefect: so.reportedDefect,
+        technicalExplanation: so.technicalExplanation || undefined,
+        budgetNote: so.budgetNote || undefined,
+        items,
+        createdAt: so.createdAt || new Date(),
+      });
+
+      try {
+        /*
+        // Disabled for Edge/Cloudflare compatibility
+        const budgetsBaseDir = process.env.BUDGETS_DIR || path.join(process.cwd(), 'storage', 'budgets');
+        fs.mkdirSync(budgetsBaseDir, { recursive: true });
+        const safeFileName = budgetMetadata.filename.replace(/[\\\/:*?"<>|]/g, '_');
+        const fullPath = path.join(budgetsBaseDir, safeFileName);
+        fs.writeFileSync(fullPath, budgetMetadata.buffer);
+        console.log(`💾 Orçamento salvo em: ${fullPath}`);
+        */
+        console.log(`ℹ️ Orçamento gerado em memória (não salvo em disco no ambiente Edge): ${budgetMetadata.filename}`);
+      } catch (fileErr) {
+        console.error('❌ Erro ao salvar orçamento no disco:', fileErr);
+      }
+
+      console.log(`✅ Orçamento gerado para OS ${serviceOrderId}: ${budgetMetadata.filename}`);
+    } catch (err) {
+      console.error('❌ Erro ao gerar orçamento:', err);
+    }
+  }
+>>>>>>> Stashed changes
 
   // Novo: gerar orçamento para download (sem salvar em disco)
   static async getBudgetForDownload(serviceOrderId: string): Promise<{ buffer: Buffer; filename: string } | null> {
@@ -369,7 +563,7 @@ export class ReceiptService {
         technicalExplanation: so.technicalExplanation || undefined,
         budgetNote: so.budgetNote || undefined,
         items,
-        createdAt: so.createdAt,
+        createdAt: so.createdAt || new Date(),
       });
 
       console.log(`✅ Orçamento gerado para download - OS: ${serviceOrderId}`);

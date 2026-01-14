@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+<<<<<<< Updated upstream
+=======
+import { getDb } from '@/lib/db/drizzle'
+import { technicians, serviceOrders } from '@/lib/db/schema'
+import { eq, sql } from 'drizzle-orm'
+>>>>>>> Stashed changes
 import { z } from 'zod'
 import { getRequestContext } from '@cloudflare/next-on-pages'
 
 export const runtime = 'edge'
+
+export const runtime = 'edge';
 
 const updateSchema = z.object({
   name: z.string().min(2).optional(),
@@ -58,6 +66,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const specs = normalizeSpecializations(parsed.data.specializations)
     if (specs !== undefined) data.specializations = JSON.stringify(specs)
 
+<<<<<<< Updated upstream
     // Construct Update Query
     const keys = Object.keys(data)
     if (keys.length > 0) {
@@ -74,6 +83,27 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const tech: any = await db.prepare('SELECT * FROM technicians WHERE id = ?').bind(id).first()
     
+=======
+    // Add updatedAt
+    data.updatedAt = new Date()
+
+    const { id } = await params
+    const db = await getDb()
+
+    const [tech] = await db.update(technicians)
+      .set(data)
+      .where(eq(technicians.id, id))
+      .returning({
+        id: technicians.id,
+        name: technicians.name,
+        email: technicians.email,
+        phone: technicians.phone,
+        isAvailable: technicians.isAvailable,
+        specializations: technicians.specializations,
+        createdAt: technicians.createdAt,
+      })
+
+>>>>>>> Stashed changes
     if (!tech) {
         return NextResponse.json({ error: 'Técnico não encontrado' }, { status: 404 })
     }
@@ -99,23 +129,42 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     }
 
     const { id } = await params
+<<<<<<< Updated upstream
     const db = getRequestContext().env.DB
 
     const existing: any = await db.prepare(
         `SELECT id, (SELECT COUNT(*) FROM service_orders WHERE technicianId = technicians.id) as serviceOrdersCount FROM technicians WHERE id = ?`
     ).bind(id).first()
+=======
+    const db = await getDb()
+
+    const [existing] = await db.select({
+      id: technicians.id,
+      serviceOrdersCount: sql<number>`(SELECT COUNT(*) FROM ${serviceOrders} WHERE ${serviceOrders.technicianId} = ${technicians.id})`
+    })
+    .from(technicians)
+    .where(eq(technicians.id, id))
+>>>>>>> Stashed changes
 
     if (!existing) {
       return NextResponse.json({ error: 'Técnico não encontrado' }, { status: 404 })
     }
+<<<<<<< Updated upstream
     if (existing.serviceOrdersCount > 0) {
+=======
+    if (Number(existing.serviceOrdersCount) > 0) {
+>>>>>>> Stashed changes
       return NextResponse.json(
         { error: 'Não é possível deletar técnico com ordens de serviço vinculadas' },
         { status: 400 }
       )
     }
 
+<<<<<<< Updated upstream
     await db.prepare('DELETE FROM technicians WHERE id = ?').bind(id).run()
+=======
+    await db.delete(technicians).where(eq(technicians.id, id))
+>>>>>>> Stashed changes
     return NextResponse.json({ message: 'Técnico removido com sucesso' })
   } catch (e) {
     console.error('Erro ao remover técnico:', e)

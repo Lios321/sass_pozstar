@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+<<<<<<< Updated upstream
 import { z } from 'zod'
 import { getRequestContext } from '@cloudflare/next-on-pages'
 
@@ -8,10 +9,26 @@ import { getRequestContext } from '@cloudflare/next-on-pages'
 
 export const runtime = 'edge'
 
+=======
+import { NotificationService } from '@/lib/notifications'
+import { ReceiptService } from '@/lib/receipt-service'
+import { z } from 'zod'
+import { getDb } from '@/lib/db/drizzle'
+import { serviceOrders, clients, technicians, notifications, receiptDeliveries } from '@/lib/db/schema'
+import { eq, and, lt, count } from 'drizzle-orm'
+import { sendTemplate } from '@/lib/whatsapp'
+import { buildTemplatePayload } from '@/lib/whatsapp-templates'
+import { v4 as uuidv4 } from 'uuid'
+
+export const runtime = 'edge';
+
+// Enum definitions matching schema
+>>>>>>> Stashed changes
 const ServiceOrderStatus = {
   SEM_VER: 'SEM_VER',
   ORCAMENTAR: 'ORCAMENTAR',
   APROVADO: 'APROVADO',
+<<<<<<< Updated upstream
   ESPERANDO_PECAS: 'ESPERANDO_PECAS',
   COMPRADO: 'COMPRADO',
   MELHORAR: 'MELHORAR',
@@ -20,11 +37,23 @@ const ServiceOrderStatus = {
   DESCARTE: 'DESCARTE',
   TERMINADO: 'TERMINADO'
 }
+=======
+  MELHORAR: 'MELHORAR',
+  DEVOLVIDO: 'DEVOLVIDO',
+  DESCARTE: 'DESCARTE',
+  TERMINADO: 'TERMINADO'
+} as const;
+
+const ReceiptDeliveryMethod = {
+  EMAIL: 'EMAIL',
+  WHATSAPP: 'WHATSAPP'
+} as const;
+>>>>>>> Stashed changes
 
 // Interface para dados de atualização
 interface UpdateServiceOrderData {
   clientId?: string;
-  technicianId?: string;
+  technicianId?: string | null;
   equipmentType?: string;
   brand?: string;
   model?: string;
@@ -92,7 +121,11 @@ const updateServiceOrderSchema = z.object({
   price: z.number().optional(),
   cost: z.number().optional(),
   budgetItems: z.any().optional(),
+<<<<<<< Updated upstream
   status: z.string().optional(),
+=======
+  status: z.enum(['SEM_VER', 'ORCAMENTAR', 'APROVADO', 'MELHORAR', 'DEVOLVIDO', 'DESCARTE', 'TERMINADO']).optional(),
+>>>>>>> Stashed changes
   arrivalDate: z.string().optional(),
   openingDate: z.string().optional(),
   completionDate: z.string().optional(),
@@ -107,6 +140,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+<<<<<<< Updated upstream
     const db = getRequestContext().env.DB
 
     const serviceOrder: any = await db.prepare(`
@@ -116,6 +150,16 @@ export async function GET(
         LEFT JOIN technicians t ON so.technicianId = t.id
         WHERE so.id = ?
     `).bind(id).first()
+=======
+    const db = await getDb()
+    const serviceOrder = await db.query.serviceOrders.findFirst({
+      where: eq(serviceOrders.id, id),
+      with: {
+        client: true,
+        technician: true
+      }
+    })
+>>>>>>> Stashed changes
 
     if (!serviceOrder) {
       return NextResponse.json(
@@ -150,10 +194,22 @@ export async function PUT(
     const body = await request.json()
     const validatedData = updateServiceOrderSchema.parse(body)
     const { id } = await params;
+<<<<<<< Updated upstream
     const db = getRequestContext().env.DB
 
     // Verificar se a ordem de serviço existe
     const existingOrder: any = await db.prepare('SELECT * FROM service_orders WHERE id = ?').bind(id).first()
+=======
+    const db = await getDb()
+
+    // Verificar se a ordem de serviço existe
+    const existingOrder = await db.query.serviceOrders.findFirst({
+      where: eq(serviceOrders.id, id),
+      with: {
+        client: true
+      }
+    })
+>>>>>>> Stashed changes
 
     if (!existingOrder) {
       return NextResponse.json(
@@ -164,14 +220,40 @@ export async function PUT(
 
     // Verificar se o cliente existe
     if (validatedData.clientId) {
+<<<<<<< Updated upstream
       const client = await db.prepare('SELECT id FROM clients WHERE id = ?').bind(validatedData.clientId).first()
       if (!client) return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 400 })
+=======
+      const client = await db.query.clients.findFirst({
+        where: eq(clients.id, validatedData.clientId)
+      })
+
+      if (!client) {
+        return NextResponse.json(
+          { error: 'Cliente não encontrado' },
+          { status: 400 }
+        )
+      }
+>>>>>>> Stashed changes
     }
 
     // Verificar se o técnico existe
     if (validatedData.technicianId) {
+<<<<<<< Updated upstream
       const technician = await db.prepare('SELECT id FROM technicians WHERE id = ?').bind(validatedData.technicianId).first()
       if (!technician) return NextResponse.json({ error: 'Técnico não encontrado' }, { status: 400 })
+=======
+      const technician = await db.query.technicians.findFirst({
+        where: eq(technicians.id, validatedData.technicianId)
+      })
+
+      if (!technician) {
+        return NextResponse.json(
+          { error: 'Técnico não encontrado' },
+          { status: 400 }
+        )
+      }
+>>>>>>> Stashed changes
     }
 
     // Regras de Status
@@ -181,7 +263,11 @@ export async function PUT(
         ServiceOrderStatus.DEVOLVIDO,
         ServiceOrderStatus.DESCARTE,
       ]
+<<<<<<< Updated upstream
       if (!allowedFromSemVer.includes(validatedData.status)) {
+=======
+      if (!allowedFromSemVer.includes(validatedData.status as any)) {
+>>>>>>> Stashed changes
         return NextResponse.json(
           { error: 'Do estado SEM_VER só pode mudar para ORCAMENTAR, DEVOLVIDO ou DESCARTE.' },
           { status: 400 }
@@ -216,6 +302,7 @@ export async function PUT(
         data.budgetItems = sanitizeBudgetItems(data.budgetItems)
      }
 
+<<<<<<< Updated upstream
      // Dates
      const dateFields = ['arrivalDate', 'openingDate', 'completionDate', 'deliveryDate', 'paymentDate']
      dateFields.forEach(field => {
@@ -269,6 +356,196 @@ export async function PUT(
          } : null
      })
 
+=======
+     // Sanitizar itens de orçamento se presentes
+     if (Object.prototype.hasOwnProperty.call(validatedData, 'budgetItems')) {
+       updateData.budgetItems = sanitizeBudgetItems(validatedData.budgetItems)
+       if (updateData.budgetItems) {
+         updateData.budgetItems = JSON.stringify(updateData.budgetItems)
+       }
+     }
+
+     // Converter datas se fornecidas
+     if (validatedData.arrivalDate) {
+       updateData.arrivalDate = new Date(validatedData.arrivalDate)
+     }
+     if (validatedData.openingDate) {
+       updateData.openingDate = new Date(validatedData.openingDate)
+     }
+     if (validatedData.completionDate) {
+       updateData.completionDate = new Date(validatedData.completionDate)
+     }
+     if (validatedData.deliveryDate) {
+       updateData.deliveryDate = new Date(validatedData.deliveryDate)
+     }
+     if (validatedData.paymentDate) {
+       updateData.paymentDate = new Date(validatedData.paymentDate)
+     }
+
+     // Se o status for alterado para TERMINADO e não houver data de conclusão, definir agora
+     if (validatedData.status === ServiceOrderStatus.TERMINADO && !validatedData.completionDate && !existingOrder.completionDate) {
+       updateData.completionDate = new Date()
+     }
+
+     // Se o status for alterado para DEVOLVIDO e não houver data de entrega, definir agora
+     if (validatedData.status === ServiceOrderStatus.DEVOLVIDO && !validatedData.deliveryDate && !existingOrder.deliveryDate) {
+       updateData.deliveryDate = new Date()
+     }
+
+     // Mapear atualização de técnico via relação
+     // Drizzle handles this by setting technicianId directly
+     if (Object.prototype.hasOwnProperty.call(validatedData, 'technicianId')) {
+       if (validatedData.technicianId) {
+         updateData.technicianId = validatedData.technicianId
+       } else {
+         updateData.technicianId = null
+       }
+     }
+
+     const [updatedOrder] = await db.update(serviceOrders)
+       .set(updateData as any)
+       .where(eq(serviceOrders.id, id))
+       .returning()
+
+     // Refetch with relations
+     const updatedOrderWithRelations = await db.query.serviceOrders.findFirst({
+       where: eq(serviceOrders.id, id),
+       with: {
+         client: true,
+         technician: true
+       }
+     })
+
+     if (!updatedOrderWithRelations) {
+        // Should not happen
+        return NextResponse.json({ error: 'Erro ao recuperar ordem atualizada' }, { status: 500 })
+     }
+
+    // Ao sair de SEM_VER: informar posição na fila
+    try {
+      if (
+        existingOrder.status === ServiceOrderStatus.SEM_VER &&
+        validatedData.status &&
+        validatedData.status !== ServiceOrderStatus.SEM_VER
+      ) {
+        const countAheadResult = await db.select({ count: count() })
+          .from(serviceOrders)
+          .where(and(
+            eq(serviceOrders.status, ServiceOrderStatus.SEM_VER),
+            lt(serviceOrders.openingDate, existingOrder.openingDate as Date)
+          ))
+        const countAhead = countAheadResult[0]?.count || 0
+
+        const to = updatedOrderWithRelations.client?.phone || ""
+        if (to) {
+          const payload = buildTemplatePayload("equipamentos_pendentes_abertura", {
+            nome: updatedOrderWithRelations.client?.name || "Cliente",
+            equipamento: updatedOrderWithRelations.equipmentType,
+            quantidade: String(countAhead),
+          })
+          if (payload) {
+            const result = await sendTemplate({
+              to,
+              name: payload.name,
+              language: payload.language,
+              components: payload.components,
+            })
+            
+            await db.insert(notifications).values({
+              id: uuidv4(),
+              title: result.ok ? "WhatsApp enviado" : "Falha no WhatsApp",
+              message: result.ok
+                ? `Fila de abertura • ${updatedOrderWithRelations.client?.name || ""} • à frente: ${countAhead}`
+                : `Fila de abertura • erro: ${String(result.error || "send_failed")}`,
+              type: result.ok ? "SUCCESS" : "ERROR",
+              clientId: updatedOrderWithRelations.clientId,
+              serviceOrderId: updatedOrderWithRelations.id,
+              isRead: false,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            })
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Falha ao enviar WhatsApp de saída de SEM_VER:", err)
+    }
+
+     // Criar notificações se necessário
+     try {
+       // Notificação de mudança de status
+       if (validatedData.status && validatedData.status !== existingOrder.status) {
+         await NotificationService.createServiceOrderStatusNotification(
+           id,
+           existingOrder.status!,
+           validatedData.status
+         )
+       }
+
+       // Notificação de técnico atribuído
+       if (validatedData.technicianId && validatedData.technicianId !== existingOrder.technicianId) {
+         await NotificationService.createTechnicianAssignedNotification(
+           id
+         )
+       }
+     } catch (notificationError) {
+       console.error('Erro ao criar notificação:', notificationError)
+       // Não falhar a atualização por causa da notificação
+     }
+
+     // Ao entrar em ORCAMENTAR: gerar comprovante e enviar ao cliente
+     try {
+       if (
+         validatedData.status &&
+         validatedData.status !== existingOrder.status &&
+         validatedData.status === ServiceOrderStatus.ORCAMENTAR
+       ) {
+         // Executar operações de comprovante (await para garantir execução no Edge)
+         (async () => {
+           try {
+             // 1) Gera/atualiza o comprovante no banco
+             await ReceiptService.generateReceiptForDownload(id);
+             
+             // Também gerar e salvar o PDF de orçamento (se houver itens)
+             try {
+               await ReceiptService.generateBudgetForOrcamentar(id);
+             } catch (err) {
+               console.error('Erro ao gerar orçamento (ORCAMENTAR):', err);
+             }
+
+             // 2) Escolhe métodos disponíveis conforme contato do cliente
+             const methods: string[] = [];
+             if (updatedOrderWithRelations.client?.email) methods.push(ReceiptDeliveryMethod.EMAIL);
+             if (updatedOrderWithRelations.client?.phone) methods.push(ReceiptDeliveryMethod.WHATSAPP);
+
+             if (methods.length === 0) {
+               console.warn(`Cliente sem contato para envio de comprovante - OS: ${id}`);
+               return;
+             }
+
+             // 3) Envia por cada método disponível
+             await Promise.all(
+               methods.map((m) => ReceiptService.resendReceipt(id, m as any))
+             );
+             
+             try {
+               const { sendBudgetWhatsApp } = await import('@/lib/budget-notify');
+               await sendBudgetWhatsApp(id);
+             } catch (err) {
+               console.error('Erro ao enviar orçamento por WhatsApp:', err);
+             }
+           } catch (err) {
+             console.error('Erro na geração/envio de comprovante (ORCAMENTAR):', err);
+           }
+         })();
+       }
+     } catch (receiptFlowError) {
+       console.error('Erro ao iniciar fluxo de comprovante:', receiptFlowError);
+       // Não falhar a atualização por causa do envio de comprovante
+     }
+
+     return NextResponse.json(updatedOrderWithRelations)
+>>>>>>> Stashed changes
    } catch (error) {
      if (error instanceof z.ZodError) {
        return NextResponse.json(
@@ -292,9 +569,18 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+<<<<<<< Updated upstream
     const db = getRequestContext().env.DB
 
     const existingOrder: any = await db.prepare('SELECT status FROM service_orders WHERE id = ?').bind(id).first()
+=======
+    const db = await getDb()
+
+    // Verificar se a ordem de serviço existe
+    const existingOrder = await db.query.serviceOrders.findFirst({
+      where: eq(serviceOrders.id, id)
+    })
+>>>>>>> Stashed changes
 
     if (!existingOrder) {
       return NextResponse.json(
@@ -310,11 +596,20 @@ export async function DELETE(
       )
     }
 
+<<<<<<< Updated upstream
     // Manual Cascade Delete
     await db.batch([
         db.prepare('DELETE FROM receipt_deliveries WHERE serviceOrderId = ?').bind(id),
         db.prepare('DELETE FROM notifications WHERE serviceOrderId = ?').bind(id),
         db.prepare('DELETE FROM service_orders WHERE id = ?').bind(id)
+=======
+    // Excluir dependências para evitar erro de restrição de chave estrangeira
+    // Using batch for transaction-like behavior in D1
+    await db.batch([
+        db.delete(receiptDeliveries).where(eq(receiptDeliveries.serviceOrderId, id)),
+        db.delete(notifications).where(eq(notifications.serviceOrderId, id)),
+        db.delete(serviceOrders).where(eq(serviceOrders.id, id))
+>>>>>>> Stashed changes
     ])
 
     return NextResponse.json({ message: 'Ordem de serviço excluída com sucesso' })

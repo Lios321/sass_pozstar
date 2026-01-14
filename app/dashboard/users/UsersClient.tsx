@@ -67,7 +67,7 @@ export default function UsersClient() {
       sp.set('pageSize', '10')
       if (params?.q ?? q) sp.set('q', params?.q ?? q)
       const res = await fetch(`/api/users?${sp.toString()}`)
-      const json = await res.json()
+      const json: any = await res.json()
       if (!res.ok) throw new Error(json?.error || 'Erro ao carregar usuários')
       setUsers(json.data || [])
       setTotalPages(json.pagination?.totalPages || 1)
@@ -98,7 +98,7 @@ export default function UsersClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formCreate),
       })
-      const json = await res.json()
+      const json: any = await res.json()
       if (!res.ok) throw new Error(json?.error || 'Erro ao criar usuário')
       setOpenCreate(false)
       setFormCreate({ name: '', email: '', password: '', role: 'TECHNICIAN' })
@@ -125,7 +125,7 @@ export default function UsersClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formEdit),
       })
-      const json = await res.json()
+      const json: any = await res.json()
       if (!res.ok) throw new Error(json?.error || 'Erro ao atualizar usuário')
       setOpenEditId(null)
       setFormEdit({ name: '', email: '', role: 'TECHNICIAN', password: '' })
@@ -143,7 +143,7 @@ export default function UsersClient() {
       setLoading(true)
       setError(null)
       const res = await fetch(`/api/users/${id}`, { method: 'DELETE' })
-      const json = await res.json()
+      const json: any = await res.json()
       if (!res.ok) throw new Error(json?.error || 'Erro ao remover usuário')
       await fetchUsers()
     } catch (e: any) {

@@ -1,4 +1,11 @@
+<<<<<<< Updated upstream
 import { getRequestContext } from '@cloudflare/next-on-pages'
+=======
+import { getDb } from './db/drizzle'
+import { notifications, serviceOrders, clients, technicians } from './db/schema'
+import { eq, and, sql } from 'drizzle-orm'
+import { v4 as uuidv4 } from 'uuid'
+>>>>>>> Stashed changes
 import {
   buildNewOsMessage,
   buildNewOsTitle,
@@ -23,6 +30,7 @@ export class NotificationService {
   // Criar uma notificação
   static async create(data: CreateNotificationData) {
     try {
+<<<<<<< Updated upstream
       const db = getRequestContext().env.DB
       const id = crypto.randomUUID()
       const now = new Date().toISOString()
@@ -83,6 +91,24 @@ export class NotificationService {
           status: notification.so_status
         } : null
       }
+=======
+      const db = getDb();
+      const id = uuidv4();
+      const notification = await db.insert(notifications).values({
+        id,
+        title: data.title,
+        message: data.message,
+        type: data.type,
+        userId: data.userId,
+        clientId: data.clientId,
+        serviceOrderId: data.serviceOrderId,
+        isRead: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }).returning();
+
+      return notification[0];
+>>>>>>> Stashed changes
     } catch (error) {
       console.error('Erro ao criar notificação:', error)
       throw error
@@ -96,6 +122,7 @@ export class NotificationService {
     newStatus: string
   ) {
     try {
+<<<<<<< Updated upstream
       const db = getRequestContext().env.DB
       
       // Buscar dados da ordem de serviço
@@ -106,11 +133,23 @@ export class NotificationService {
         LEFT JOIN users t ON so.technicianId = t.id
         WHERE so.id = ?
       `).bind(serviceOrderId).first()
+=======
+      const db = getDb();
+      // Buscar dados da ordem de serviço
+      const serviceOrder = await db.query.serviceOrders.findFirst({
+        where: eq(serviceOrders.id, serviceOrderId),
+        with: {
+            client: true,
+            technician: true
+        }
+      });
+>>>>>>> Stashed changes
 
       if (!serviceOrder) {
         throw new Error('Ordem de serviço não encontrada')
       }
 
+<<<<<<< Updated upstream
       // Mapear para objeto compatível
       const so = {
         ...serviceOrder,
@@ -120,6 +159,9 @@ export class NotificationService {
       }
 
       const title = buildStatusUpdateTitle(so.orderNumber as string)
+=======
+      const title = buildStatusUpdateTitle(serviceOrder.orderNumber)
+>>>>>>> Stashed changes
       const message = buildStatusUpdateMessage(oldStatus, newStatus)
 
       // Criar notificação para o cliente
@@ -176,6 +218,7 @@ export class NotificationService {
   // Criar notificação para nova ordem de serviço
   static async createNewServiceOrderNotification(serviceOrderId: string) {
     try {
+<<<<<<< Updated upstream
       const db = getRequestContext().env.DB
       
       const serviceOrder = await db.prepare(`
@@ -184,6 +227,15 @@ export class NotificationService {
         LEFT JOIN clients c ON so.clientId = c.id
         WHERE so.id = ?
       `).bind(serviceOrderId).first()
+=======
+      const db = getDb();
+      const serviceOrder = await db.query.serviceOrders.findFirst({
+        where: eq(serviceOrders.id, serviceOrderId),
+        with: {
+            client: true
+        }
+      });
+>>>>>>> Stashed changes
 
       if (!serviceOrder) {
         throw new Error('Ordem de serviço não encontrada')
@@ -215,6 +267,7 @@ export class NotificationService {
     serviceOrderId: string
   ) {
     try {
+<<<<<<< Updated upstream
       const db = getRequestContext().env.DB
       
       const serviceOrder = await db.prepare(`
@@ -224,6 +277,16 @@ export class NotificationService {
         LEFT JOIN users t ON so.technicianId = t.id
         WHERE so.id = ?
       `).bind(serviceOrderId).first()
+=======
+      const db = getDb();
+      const serviceOrder = await db.query.serviceOrders.findFirst({
+        where: eq(serviceOrders.id, serviceOrderId),
+        with: {
+            client: true,
+            technician: true
+        }
+      });
+>>>>>>> Stashed changes
 
       if (!serviceOrder) {
         throw new Error('Ordem de serviço não encontrada')
@@ -250,6 +313,7 @@ export class NotificationService {
     }
   }
 
+<<<<<<< Updated upstream
   // Buscar notificações não lidas
   static async getUnreadCount(userId?: string, clientId?: string) {
     try {
@@ -274,4 +338,25 @@ export class NotificationService {
       throw error
     }
   }
+=======
+    // Buscar notificações não lidas
+    static async getUnreadCount(userId?: string, clientId?: string) {
+      try {
+        const db = getDb();
+        const conditions = [eq(notifications.isRead, false)];
+        
+        if (userId) conditions.push(eq(notifications.userId, userId));
+        if (clientId) conditions.push(eq(notifications.clientId, clientId));
+
+        const result = await db.select({ count: sql<number>`count(*)` })
+          .from(notifications)
+          .where(and(...conditions));
+          
+        return result[0]?.count || 0;
+      } catch (error) {
+        console.error('Erro ao buscar contagem de notificações:', error)
+        return 0;
+      }
+    }
+>>>>>>> Stashed changes
 }

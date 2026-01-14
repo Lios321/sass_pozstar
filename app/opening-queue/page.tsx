@@ -2,7 +2,7 @@ import React from "react"
 
 async function fetchItems() {
   const res = await fetch(`/api/opening-queue`, { cache: "no-store" })
-  const data = await res.json().catch(() => ({ ok: false }))
+  const data: any = await res.json().catch(() => ({ ok: false }))
   return data?.items || []
 }
 

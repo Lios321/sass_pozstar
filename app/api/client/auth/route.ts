@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
+<<<<<<< Updated upstream
+=======
+import { getDb } from '@/lib/db/drizzle'
+import { clients } from '@/lib/db/schema'
+import { eq, like, desc, and } from 'drizzle-orm'
+>>>>>>> Stashed changes
 import { z } from 'zod'
 import { getRequestContext } from '@cloudflare/next-on-pages'
 
+<<<<<<< Updated upstream
 export const runtime = 'edge'
+=======
+export const runtime = 'edge';
+>>>>>>> Stashed changes
 
 const clientAuthSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -14,11 +24,13 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { email, phone } = clientAuthSchema.parse(body)
+    const db = await getDb()
 
     // Normalizar telefone (remover caracteres especiais)
     const normalizedPhone = phone.replace(/\D/g, '')
     const db = getRequestContext().env.DB
 
+<<<<<<< Updated upstream
     // Buscar cliente pelo email e telefone (usando LIKE para os últimos 8 dígitos do telefone)
     // Prisma: phone: { contains: normalizedPhone.slice(-8) }
     const phoneSuffix = normalizedPhone.slice(-8)
@@ -29,6 +41,20 @@ export async function POST(request: NextRequest) {
       WHERE lower(c.email) = lower(?) AND c.phone LIKE ?
       LIMIT 1
     `).bind(email, `%${phoneSuffix}%`).first()
+=======
+    // Buscar cliente pelo email e telefone
+    const client = await db.query.clients.findFirst({
+      where: and(
+        eq(clients.email, email.toLowerCase()),
+        like(clients.phone, `%${normalizedPhone.slice(-8)}`)
+      ),
+      with: {
+        serviceOrders: {
+          orderBy: (serviceOrders, { desc }) => [desc(serviceOrders.createdAt)]
+        }
+      }
+    })
+>>>>>>> Stashed changes
 
     if (!client) {
       return NextResponse.json(

@@ -63,7 +63,7 @@ export default function ClientAutocomplete({
       if (!response.ok) {
         throw new Error('Erro ao buscar clientes');
       }
-      const data = await response.json();
+      const data: any = await response.json();
       setSuggestions(data.clients || []);
     } catch (err) {
       console.error("Erro ao buscar clientes:", err);

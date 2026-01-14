@@ -180,13 +180,13 @@ export default function ServiceOrdersPage() {
         }
         let message = 'Erro ao carregar ordens de serviço'
         try {
-          const errJson = await response.json()
+          const errJson: any = await response.json()
           message = errJson?.error || message
         } catch (_) {}
         throw new Error(message)
       }
       
-      const data = await response.json()
+      const data: any = await response.json()
       const list = data.serviceOrders || data
       setServiceOrders(list)
       if (data.pagination) {
@@ -224,7 +224,7 @@ export default function ServiceOrdersPage() {
         }
         throw new Error('Erro ao carregar clientes')
       }
-      const data = await response.json()
+      const data: any = await response.json()
       setClients(data.clients || data)
     } catch (err) {
       console.error('Erro ao carregar clientes:', err)
@@ -241,7 +241,7 @@ export default function ServiceOrdersPage() {
         }
         throw new Error('Erro ao carregar técnicos')
       }
-      const data = await response.json()
+      const data: any = await response.json()
       setTechnicians(data.technicians || data)
     } catch (err) {
       console.error('Erro ao carregar técnicos:', err)
@@ -272,7 +272,7 @@ export default function ServiceOrdersPage() {
           router.push('/login')
           return
         }
-        const errorData = await response.json()
+        const errorData: any = await response.json()
         throw new Error(errorData.error || 'Erro ao atualizar ordem de serviço')
       }
 
@@ -309,7 +309,7 @@ export default function ServiceOrdersPage() {
           router.push('/login')
           return
         }
-        const errorData = await response.json()
+        const errorData: any = await response.json()
         throw new Error(errorData.error || 'Erro ao excluir ordem de serviço')
       }
 

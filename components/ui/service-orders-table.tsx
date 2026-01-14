@@ -88,7 +88,11 @@ type SortField = 'orderNumber' | 'clientName' | 'equipmentType' | 'brand' | 'sta
 type SortDirection = 'asc' | 'desc';
 
 // Define unified status type used across UI
+<<<<<<< Updated upstream
 import type { ServiceOrderStatus } from '@/lib/types';
+=======
+import { ServiceOrderStatus } from '@/lib/types';
+>>>>>>> Stashed changes
 
 const statusConfig: Record<ServiceOrderStatus, { label: string; icon: any; className: string }> = {
   SEM_VER: {

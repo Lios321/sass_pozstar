@@ -71,7 +71,7 @@ export default function ClientsPage() {
       if (!response.ok) {
         throw new Error('Erro ao carregar clientes');
       }
-      const data = await response.json();
+      const data: any = await response.json();
       setClients(data.clients);
       const total = data.pagination?.total ?? data.total ?? 0;
       const pages = (data.pagination?.pages ?? Math.ceil(total / itemsPerPage)) || 1;
@@ -104,7 +104,7 @@ export default function ClientsPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData: any = await response.json();
         throw new Error(errorData.error || 'Erro ao salvar cliente');
       }
 
@@ -135,7 +135,7 @@ export default function ClientsPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData: any = await response.json();
         throw new Error(errorData.error || 'Erro ao excluir cliente');
       }
 

@@ -4,6 +4,8 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
 import { EmailService } from '@/lib/email-service'
 
+export const runtime = 'edge';
+
 const AttachmentSchema = z.object({
   filename: z.string().min(1),
   contentBase64: z.string().min(1),

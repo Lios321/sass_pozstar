@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+<<<<<<< Updated upstream
+=======
+import { getDb } from '@/lib/db/drizzle'
+import { technicians, users, serviceOrders } from '@/lib/db/schema'
+import { eq, or, and, desc, count, sql, like } from 'drizzle-orm'
+>>>>>>> Stashed changes
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
@@ -6,9 +12,30 @@ import { hashPassword } from '@/lib/auth'
 import jwt from 'jsonwebtoken'
 import { EmailService } from '@/lib/email-service'
 import { inviteTemplate } from '@/lib/email-templates'
+<<<<<<< Updated upstream
 import { getRequestContext } from '@cloudflare/next-on-pages'
 
 export const runtime = 'edge'
+=======
+import { v4 as uuidv4 } from 'uuid'
+
+export const runtime = 'edge';
+
+// Interfaces para tipos de dados
+// Removido TechnicianWhereClause customizado; vamos usar o tipo oficial do Prisma
+
+interface TechnicianFromDB {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  specializations: string | null;
+  isAvailable: boolean;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+  serviceOrdersCount?: number;
+}
+>>>>>>> Stashed changes
 
 const createSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
@@ -48,6 +75,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || ''
     const available = searchParams.get('available')
 
+<<<<<<< Updated upstream
     const offset = (page - 1) * limit
     const db = getRequestContext().env.DB
 
@@ -79,9 +107,57 @@ export async function GET(request: NextRequest) {
       LIMIT ? OFFSET ?
     `
     const { results: technicians } = await db.prepare(query).bind(...params, limit, offset).all()
+=======
+    const skip = (page - 1) * limit
+    const db = await getDb()
+
+    const conditions = []
+
+    if (search) {
+      conditions.push(
+        or(
+          like(technicians.name, `%${search}%`),
+          like(technicians.email, `%${search}%`),
+          like(technicians.phone, `%${search}%`)
+        )
+      )
+    }
+
+    if (available !== null && available !== undefined) {
+      conditions.push(eq(technicians.isAvailable, available === 'true'))
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined
+
+    const [techniciansData, totalResult] = await Promise.all([
+      db.select({
+        id: technicians.id,
+        name: technicians.name,
+        email: technicians.email,
+        phone: technicians.phone,
+        specializations: technicians.specializations,
+        isAvailable: technicians.isAvailable,
+        createdAt: technicians.createdAt,
+        updatedAt: technicians.updatedAt,
+        serviceOrdersCount: sql<number>`(SELECT COUNT(*) FROM ${serviceOrders} WHERE ${serviceOrders.technicianId} = ${technicians.id})`
+      })
+      .from(technicians)
+      .where(whereClause)
+      .limit(limit)
+      .offset(skip)
+      .orderBy(desc(technicians.createdAt)),
+      db.select({ count: count() }).from(technicians).where(whereClause)
+    ])
+>>>>>>> Stashed changes
+
+    const total = totalResult[0]?.count || 0
 
     // Parse specializations JSON
+<<<<<<< Updated upstream
     const techniciansParsed = technicians.map((tech: any) => ({
+=======
+    const techniciansParsed = techniciansData.map((tech) => ({
+>>>>>>> Stashed changes
       ...tech,
       isAvailable: !!tech.isAvailable, // Convert 1/0 to boolean
       specializations: tech.specializations ? JSON.parse(tech.specializations) : [],
@@ -130,10 +206,19 @@ export async function POST(request: NextRequest) {
     const isAvailable =
       typeof parsed.data.isAvailable === 'boolean' ? parsed.data.isAvailable : true
 
+<<<<<<< Updated upstream
     const db = getRequestContext().env.DB
 
     // Verificar se técnico já existe
     const existingTechnician = await db.prepare('SELECT id FROM technicians WHERE email = ?').bind(email).first()
+=======
+    const db = await getDb()
+
+    // Verificar se técnico já existe
+    const [existingTechnician] = await db.select()
+      .from(technicians)
+      .where(eq(technicians.email, email))
+>>>>>>> Stashed changes
 
     if (existingTechnician) {
       return NextResponse.json(
@@ -142,6 +227,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
+<<<<<<< Updated upstream
     const id = crypto.randomUUID()
     const now = new Date().toISOString()
     const specsJson = JSON.stringify(specializations)
@@ -165,6 +251,38 @@ export async function POST(request: NextRequest) {
         INSERT INTO users (id, name, email, password, role, createdAt, updatedAt)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `).bind(userId, name, email, hashed, 'TECHNICIAN', now, now).run()
+=======
+    const technicianId = uuidv4()
+    const [technician] = await db.insert(technicians)
+      .values({
+        id: technicianId,
+        name,
+        email,
+        phone,
+        isAvailable,
+        specializations: JSON.stringify(specializations),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning()
+
+    const [existingUser] = await db.select()
+      .from(users)
+      .where(eq(users.email, email))
+
+    if (!existingUser) {
+      const tempPassword = Math.random().toString(36).slice(-12)
+      const hashed = await hashPassword(tempPassword)
+      await db.insert(users).values({
+        id: uuidv4(),
+        name,
+        email,
+        password: hashed,
+        role: 'TECHNICIAN',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+>>>>>>> Stashed changes
     }
 
     let inviteLink: string | null = null

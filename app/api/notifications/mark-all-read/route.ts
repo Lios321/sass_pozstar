@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
+<<<<<<< Updated upstream
 import { getRequestContext } from '@cloudflare/next-on-pages'
 import { z } from 'zod'
 
 export const runtime = 'edge'
+=======
+import { getDb } from '@/lib/db/drizzle'
+import { notifications } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
+import { z } from 'zod'
+
+export const runtime = 'edge';
+>>>>>>> Stashed changes
 
 const markAllReadSchema = z.object({
   userId: z.string().optional(),
@@ -23,6 +32,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
+<<<<<<< Updated upstream
     const db = getRequestContext().env.DB
     let query = 'UPDATE notifications SET isRead = 1, updatedAt = ? WHERE isRead = 0'
     const params: any[] = [new Date().toISOString()]
@@ -41,6 +51,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       message: 'Notificações marcadas como lidas',
       count: result.meta.changes
+=======
+    const db = await getDb()
+
+    // Construir filtros
+    const conditions = [eq(notifications.isRead, false)]
+    
+    if (userId) conditions.push(eq(notifications.userId, userId))
+    if (clientId) conditions.push(eq(notifications.clientId, clientId))
+
+    // Marcar todas as notificações como lidas
+    const updated = await db.update(notifications)
+      .set({
+        isRead: true,
+        updatedAt: new Date()
+      })
+      .where(and(...conditions))
+      .returning({ id: notifications.id })
+
+    return NextResponse.json({
+      message: 'Notificações marcadas como lidas',
+      count: updated.length
+>>>>>>> Stashed changes
     })
   } catch (error) {
     if (error instanceof z.ZodError) {

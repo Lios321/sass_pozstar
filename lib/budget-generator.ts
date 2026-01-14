@@ -1,6 +1,4 @@
 import PDFDocument from 'pdfkit';
-import * as fs from 'fs';
-import * as path from 'path';
 import QRCode from 'qrcode';
 
 export interface BudgetItem {
@@ -178,13 +176,36 @@ Qualquer situação não prevista neste documento será analisada conforme o Có
     const logoSize = 90;
     const logoX = left + 25;
     const logoY = y + 20;
+<<<<<<< Updated upstream
     
     // Fallback visual (sem acesso ao sistema de arquivos no Edge)
+=======
+
+    // Fallback visual (Edge compatible - no filesystem access)
+>>>>>>> Stashed changes
     doc.rect(logoX, logoY, logoSize, logoSize)
       .fillColor(this.COLORS.accent)
       .fill();
     doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(32)
       .text('P', logoX + (logoSize / 2) - 10, logoY + (logoSize / 2) - 14);
+<<<<<<< Updated upstream
+=======
+
+    /*
+    // Disabled for Edge compatibility - cannot read from filesystem
+    try {
+      const logoPath = path.join(process.cwd(), 'public', 'logo.png');
+      const logoBuffer = fs.readFileSync(logoPath);
+      doc.image(logoBuffer, logoX, logoY, { fit: [logoSize, logoSize] });
+    } catch {
+      doc.rect(logoX, logoY, logoSize, logoSize)
+        .fillColor(this.COLORS.accent)
+        .fill();
+      doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(32)
+        .text('P', logoX + (logoSize / 2) - 10, logoY + (logoSize / 2) - 14);
+    }
+    */
+>>>>>>> Stashed changes
 
     // Nome da empresa à direita (estilo do recibo)
     const textLeft = logoX + logoSize + 12;

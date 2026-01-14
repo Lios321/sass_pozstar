@@ -1,9 +1,17 @@
 import NextAuth, { type NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
+<<<<<<< Updated upstream
+=======
+import { getDb } from '@/lib/db/drizzle'
+import { users } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
+>>>>>>> Stashed changes
 import { verifyPassword } from '@/lib/auth'
 import { getRequestContext } from '@cloudflare/next-on-pages'
 
 export const runtime = 'edge'
+
+export const runtime = 'edge';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -19,8 +27,15 @@ export const authOptions: NextAuthOptions = {
             return null
           }
 
+<<<<<<< Updated upstream
           const db = getRequestContext().env.DB
           const user = await db.prepare('SELECT * FROM users WHERE email = ?').bind(credentials.email).first<any>()
+=======
+          const db = getDb();
+          const user = await db.query.users.findFirst({
+            where: eq(users.email, credentials.email)
+          })
+>>>>>>> Stashed changes
 
           console.log('Auth authorize attempt', {
             email: credentials.email,

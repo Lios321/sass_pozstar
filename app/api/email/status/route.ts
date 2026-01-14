@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { EmailService } from '@/lib/email-service'
 
+export const runtime = 'edge';
+
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) {

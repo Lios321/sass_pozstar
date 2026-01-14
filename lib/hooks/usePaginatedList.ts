@@ -27,7 +27,7 @@ export function usePaginatedList<T>(endpoint: string) {
         setError('Erro ao carregar lista')
         return
       }
-      const data = await res.json()
+      const data = await res.json() as any
       const list = data.items || data.serviceOrders || data.clients || data.technicians || data
       setItems(Array.isArray(list) ? list : [])
       if (data.pagination) {

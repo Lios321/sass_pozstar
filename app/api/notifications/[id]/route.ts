@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
+<<<<<<< Updated upstream
 import { getRequestContext } from '@cloudflare/next-on-pages'
 import { z } from 'zod'
 
 export const runtime = 'edge'
+=======
+import { getDb } from '@/lib/db/drizzle'
+import { notifications } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+
+export const runtime = 'edge';
+>>>>>>> Stashed changes
 
 const updateNotificationSchema = z.object({
   isRead: z.boolean().optional(),
@@ -18,6 +27,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+<<<<<<< Updated upstream
     const db = getRequestContext().env.DB
     
     const notification: any = await db.prepare(`
@@ -32,6 +42,36 @@ export async function GET(
       LEFT JOIN service_orders so ON n.serviceOrderId = so.id
       WHERE n.id = ?
     `).bind(id).first()
+=======
+    const db = await getDb()
+
+    const notification = await db.query.notifications.findFirst({
+      where: eq(notifications.id, id),
+      with: {
+        user: {
+          columns: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        client: {
+          columns: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        serviceOrder: {
+          columns: {
+            id: true,
+            orderNumber: true,
+            status: true
+          }
+        }
+      }
+    })
+>>>>>>> Stashed changes
 
     if (!notification) {
       return NextResponse.json(
@@ -76,10 +116,19 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json()
     const data = updateNotificationSchema.parse(body)
+<<<<<<< Updated upstream
     const db = getRequestContext().env.DB
 
     // Verificar se a notificação existe
     const existingNotification: any = await db.prepare('SELECT id FROM notifications WHERE id = ?').bind(id).first()
+=======
+    const db = await getDb()
+
+    // Verificar se a notificação existe
+    const [existingNotification] = await db.select()
+      .from(notifications)
+      .where(eq(notifications.id, id))
+>>>>>>> Stashed changes
 
     if (!existingNotification) {
       return NextResponse.json(
@@ -88,6 +137,7 @@ export async function PUT(
       )
     }
 
+<<<<<<< Updated upstream
     const updates: string[] = []
     const values: any[] = []
 
@@ -147,6 +197,46 @@ export async function PUT(
     }
 
     return NextResponse.json(formatted)
+=======
+    // Atualizar notificação
+    const [updatedNotification] = await db.update(notifications)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(notifications.id, id))
+      .returning()
+
+    // Fetch related data to return consistent response
+    const notificationWithRelations = await db.query.notifications.findFirst({
+      where: eq(notifications.id, updatedNotification.id),
+      with: {
+        user: {
+          columns: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        client: {
+          columns: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        serviceOrder: {
+          columns: {
+            id: true,
+            orderNumber: true,
+            status: true
+          }
+        }
+      }
+    })
+
+    return NextResponse.json(notificationWithRelations)
+>>>>>>> Stashed changes
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -170,10 +260,19 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+<<<<<<< Updated upstream
     const db = getRequestContext().env.DB
 
     // Verificar se a notificação existe
     const existingNotification: any = await db.prepare('SELECT id FROM notifications WHERE id = ?').bind(id).first()
+=======
+    const db = await getDb()
+
+    // Verificar se a notificação existe
+    const [existingNotification] = await db.select()
+      .from(notifications)
+      .where(eq(notifications.id, id))
+>>>>>>> Stashed changes
 
     if (!existingNotification) {
       return NextResponse.json(
@@ -183,7 +282,12 @@ export async function DELETE(
     }
 
     // Deletar notificação
+<<<<<<< Updated upstream
     await db.prepare('DELETE FROM notifications WHERE id = ?').bind(id).run()
+=======
+    await db.delete(notifications)
+      .where(eq(notifications.id, id))
+>>>>>>> Stashed changes
 
     return NextResponse.json({ message: 'Notificação deletada com sucesso' })
   } catch (error) {

@@ -45,7 +45,7 @@ export function NotificationBell({ userId, clientId }: NotificationBellProps) {
         signal
       })
       if (response.ok) {
-        const data = await response.json()
+        const data: any = await response.json()
         setNotifications(data.notifications || [])
         setUnreadCount(data.notifications?.filter((n: Notification) => !n.isRead).length || 0)
       }

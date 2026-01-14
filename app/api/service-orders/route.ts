@@ -20,6 +20,17 @@ const createSchema = z.object({
   status: z.string().optional().default('SEM_VER'),
 })
 
+<<<<<<< Updated upstream
+=======
+export const runtime = 'edge';
+
+/**
+ * GET /api/service-orders
+ * Lista ordens de serviço paginadas e filtradas
+ * @param request Objeto da requisição (query params: page, limit, search, sortField, sortDirection, status, clientId, technicianId)
+ * @returns JSON com lista e paginação
+ */
+>>>>>>> Stashed changes
 export async function GET(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions)

@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+<<<<<<< Updated upstream
+=======
+import { getDb } from '@/lib/db/drizzle'
+import { serviceOrders, clients, technicians, users } from '@/lib/db/schema'
+import { eq, and, gte, lte, like, desc, asc } from 'drizzle-orm'
+>>>>>>> Stashed changes
 import { z } from 'zod'
 import { getRequestContext } from '@cloudflare/next-on-pages'
 
+<<<<<<< Updated upstream
 export const runtime = 'edge'
 
 // Enumeração de status (baseada no uso comum do projeto)
@@ -10,6 +17,45 @@ const ServiceOrderStatus = [
   'COMPRADO', 'MELHORAR', 'TERMINADO', 'SEM_PROBLEMA',
   'ESPERANDO_CLIENTE', 'DEVOLVIDO'
 ] as const
+=======
+export const runtime = 'edge';
+
+// Enum definitions (matching Prisma)
+const ServiceOrderStatus = {
+  SEM_VER: 'SEM_VER',
+  ORCAMENTAR: 'ORCAMENTAR',
+  APROVADO: 'APROVADO',
+  MELHORAR: 'MELHORAR',
+  DEVOLVIDO: 'DEVOLVIDO',
+  DESCARTE: 'DESCARTE',
+  TERMINADO: 'TERMINADO',
+  ESPERANDO_PECAS: 'ESPERANDO_PECAS',
+  COMPRADO: 'COMPRADO',
+  ESPERANDO_CLIENTE: 'ESPERANDO_CLIENTE'
+} as const;
+
+// Interfaces para tipos de dados
+interface ServiceOrderForReport {
+  id: string;
+  status: string;
+  equipmentType: string;
+  openingDate: Date | null;
+  completionDate: Date | null;
+  budgetNote: string | null;
+  client: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+  };
+  technician: {
+    id: string;
+    name: string;
+    email: string;
+    specializations: string | null;
+  } | null;
+}
+>>>>>>> Stashed changes
 
 // Schema de validação para filtros de relatório
 const reportFiltersSchema = z.object({
@@ -32,10 +78,11 @@ export async function GET(request: NextRequest) {
     const filters = {
       startDate: searchParams.get('startDate') || undefined,
       endDate: searchParams.get('endDate') || undefined,
-      status: searchParams.get('status') || undefined,
+      status: searchParams.get('status') as any || undefined,
       technicianId: searchParams.get('technicianId') || undefined,
       clientId: searchParams.get('clientId') || undefined,
       equipmentType: searchParams.get('equipmentType') || undefined,
+<<<<<<< Updated upstream
       format: searchParams.get('format') || 'json'
     }
 
@@ -63,10 +110,25 @@ export async function GET(request: NextRequest) {
     if (filters.endDate) {
       query += ` AND so.createdAt <= ?`
       params.push(new Date(filters.endDate).toISOString())
+=======
+      format: (searchParams.get('format') as any) || 'json'
+    })
+
+    const db = await getDb()
+    const conditions = []
+
+    // Filtro por período
+    if (filters.startDate) {
+      conditions.push(gte(serviceOrders.createdAt, new Date(filters.startDate)))
+    }
+    if (filters.endDate) {
+      conditions.push(lte(serviceOrders.createdAt, new Date(filters.endDate)))
+>>>>>>> Stashed changes
     }
 
     // Filtros específicos
     if (filters.status) {
+<<<<<<< Updated upstream
       query += ` AND so.status = ?`
       params.push(filters.status)
     }
@@ -120,12 +182,67 @@ export async function GET(request: NextRequest) {
       byEquipmentType: serviceOrders.reduce((acc: Record<string, number>, so: any) => {
         const type = so.equipmentType || 'Outros'
         acc[type] = (acc[type] || 0) + 1
-        return acc
-      }, {} as Record<string, number>),
-      averageCompletionTime: calculateAverageCompletionTime(serviceOrders),
-      totalRevenue: calculateTotalRevenue(serviceOrders)
+=======
+      conditions.push(eq(serviceOrders.status, filters.status))
+    }
+    if (filters.technicianId) {
+      conditions.push(eq(serviceOrders.technicianId, filters.technicianId))
+    }
+    if (filters.clientId) {
+      conditions.push(eq(serviceOrders.clientId, filters.clientId))
+    }
+    if (filters.equipmentType) {
+      conditions.push(like(serviceOrders.equipmentType, `%${filters.equipmentType}%`))
     }
 
+    // Buscar ordens de serviço com relacionamentos
+    const serviceOrdersResult = await db.query.serviceOrders.findMany({
+      where: conditions.length > 0 ? and(...conditions) : undefined,
+      with: {
+        client: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true
+          }
+        },
+        technician: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+            specializations: true
+          }
+        },
+        createdBy: {
+          columns: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: [desc(serviceOrders.createdAt)]
+    })
+
+    // Calcular estatísticas
+    const stats = {
+      total: serviceOrdersResult.length,
+      byStatus: Object.values(ServiceOrderStatus).reduce((acc: Record<string, number>, status) => {
+        acc[status] = serviceOrdersResult.filter((so) => so.status === status).length
+        return acc
+      }, {} as Record<string, number>),
+      byEquipmentType: serviceOrdersResult.reduce((acc: Record<string, number>, so) => {
+        acc[so.equipmentType] = (acc[so.equipmentType] || 0) + 1
+>>>>>>> Stashed changes
+        return acc
+      }, {} as Record<string, number>),
+      averageCompletionTime: calculateAverageCompletionTime(serviceOrdersResult),
+      totalRevenue: calculateTotalRevenue(serviceOrdersResult)
+    }
+
+<<<<<<< Updated upstream
     // Buscar técnicos e clientes para filtros (metadados)
     const { results: technicians } = await db.prepare(`
       SELECT id, name, email FROM technicians ORDER BY name ASC
@@ -134,16 +251,36 @@ export async function GET(request: NextRequest) {
     const { results: clients } = await db.prepare(`
       SELECT id, name, email FROM clients ORDER BY name ASC
     `).all()
+=======
+    // Buscar técnicos e clientes para filtros
+    const techniciansResult = await db.query.technicians.findMany({
+      columns: {
+        id: true,
+        name: true,
+        email: true
+      },
+      orderBy: [asc(technicians.name)]
+    })
+
+    const clientsResult = await db.query.clients.findMany({
+      columns: {
+        id: true,
+        name: true,
+        email: true
+      },
+      orderBy: [asc(clients.name)]
+    })
+>>>>>>> Stashed changes
 
     const reportData = {
       filters: filters,
       stats: stats,
-      serviceOrders: serviceOrders,
+      serviceOrders: serviceOrdersResult,
       metadata: {
-        technicians: technicians,
-        clients: clients,
+        technicians: techniciansResult,
+        clients: clientsResult,
         generatedAt: new Date().toISOString(),
-        totalRecords: serviceOrders.length
+        totalRecords: serviceOrdersResult.length
       }
     }
 
@@ -202,11 +339,16 @@ function calculateTotalRevenue(serviceOrders: any[]): number {
       // Extrair valor do budgetNote (formato: "R$ 250,00")
       const match = so.budgetNote.match(/R\$\s*([\d.,]+)/)
       if (match) {
+<<<<<<< Updated upstream
         // Tratar formato brasileiro: 1.250,00 -> 1250.00
         // Remover pontos de milhar, substituir vírgula decimal por ponto
         const valueStr = match[1].replace(/\./g, '').replace(',', '.')
         const value = parseFloat(valueStr)
         return acc + (isNaN(value) ? 0 : value)
+=======
+        const value = parseFloat(match[1].replace('.', '').replace(',', '.'))
+        return acc + value
+>>>>>>> Stashed changes
       }
     }
     return acc

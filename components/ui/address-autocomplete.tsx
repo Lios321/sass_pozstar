@@ -92,13 +92,13 @@ export default function AddressAutocomplete({
       const url = `/api/photon?q=${encodeURIComponent(query)}&limit=6`;
       const res = await fetch(url, { headers: { Accept: "application/json" } });
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({} as any));
+        const errorData: any = await res.json().catch(() => ({} as any));
         console.warn('Photon indisponível:', res.status, errorData?.detail);
         setSuggestions([]);
         setServiceUnavailable(true);
         return;
       }
-      const data = await res.json();
+      const data: any = await res.json();
       const features: PhotonFeature[] = data?.features || [];
       if (rid !== requestIdRef.current) {
         return;

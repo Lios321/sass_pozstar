@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
+<<<<<<< Updated upstream
 
 export const runtime = 'edge'
+=======
+import { sendTemplate } from "@/lib/whatsapp";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { EmailService } from "@/lib/email-service";
+>>>>>>> Stashed changes
+
+export const runtime = 'edge';
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const body: any = await req.json();
     const to = String(body?.to || "");
     
     if (!to) {

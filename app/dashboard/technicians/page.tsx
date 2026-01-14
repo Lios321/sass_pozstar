@@ -65,7 +65,7 @@ export default function TechniciansPage() {
       if (!response.ok) {
         throw new Error('Erro ao carregar técnicos');
       }
-      const data = await response.json();
+      const data: any = await response.json();
       setTechnicians(data.technicians);
       const total = data.pagination?.total ?? data.total ?? 0;
       const pages = (data.pagination?.pages ?? Math.ceil(total / itemsPerPage)) || 1;
@@ -98,7 +98,7 @@ export default function TechniciansPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData: any = await response.json();
         throw new Error(errorData.error || 'Erro ao salvar técnico');
       }
 
@@ -136,7 +136,7 @@ export default function TechniciansPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData: any = await response.json();
         throw new Error(errorData.error || 'Erro ao excluir técnico');
       }
 

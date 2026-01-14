@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
+<<<<<<< Updated upstream
 import { ReceiptService, ReceiptDeliveryMethod } from '@/lib/receipt-service'
+=======
+import { ReceiptService } from '@/lib/receipt-service'
+>>>>>>> Stashed changes
 import { z } from 'zod'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 
 export const runtime = 'edge';
 
+<<<<<<< Updated upstream
+=======
+const ReceiptDeliveryMethod = {
+  EMAIL: 'EMAIL',
+  WHATSAPP: 'WHATSAPP'
+} as const;
+
+type ReceiptDeliveryMethod = typeof ReceiptDeliveryMethod[keyof typeof ReceiptDeliveryMethod];
+
+>>>>>>> Stashed changes
 const resendSchema = z.object({
   method: z.enum(['EMAIL', 'WHATSAPP', 'BOTH']),
 })
@@ -42,7 +56,7 @@ export async function POST(
     // Reenviar por cada método
     const results = await Promise.all(
       methods.map(async (deliveryMethod) => {
-        const success = await ReceiptService.resendReceipt(serviceOrderId, deliveryMethod)
+        const success = await ReceiptService.resendReceipt(serviceOrderId, deliveryMethod as any)
         return {
           method: deliveryMethod,
           success,

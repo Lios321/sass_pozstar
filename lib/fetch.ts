@@ -7,7 +7,7 @@ export async function fetchJson<T = any>(input: RequestInfo | URL, init?: Reques
   if (!res.ok) {
     let message = 'Erro na solicitação'
     try {
-      const data = await res.json()
+      const data = await res.json() as any
       message = data?.error || data?.message || message
     } catch {
       // ignore

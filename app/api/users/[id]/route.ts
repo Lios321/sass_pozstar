@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+<<<<<<< Updated upstream
 import { hashPassword } from '@/lib/auth'
 import { getRequestContext } from '@cloudflare/next-on-pages'
 
 export const runtime = 'edge'
+=======
+import { getDb } from '@/lib/db/drizzle'
+import { users } from '@/lib/db/schema'
+import { hashPassword } from '@/lib/auth'
+import { eq } from 'drizzle-orm'
+
+export const runtime = 'edge';
+>>>>>>> Stashed changes
 
 export async function PUT(
   request: NextRequest,
@@ -15,8 +24,9 @@ export async function PUT(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = await request.json()
+  const body = await request.json() as any
   const { name, email, role, password } = body || {}
+<<<<<<< Updated upstream
   
   const db = getRequestContext().env.DB
   
@@ -63,8 +73,35 @@ export async function PUT(
     return NextResponse.json({ data: user })
   } catch (e: any) {
     if (e.message?.includes('UNIQUE constraint failed') || e.message?.includes('users.email')) {
+=======
+  const data: any = {}
+  if (name) data.name = name
+  if (email) data.email = email
+  if (role) data.role = role
+  if (password) data.password = await hashPassword(password)
+  
+  data.updatedAt = new Date()
+
+  try {
+    const { id } = await params
+    const db = getDb()
+    const user = await db.update(users)
+      .set(data)
+      .where(eq(users.id, id))
+      .returning({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+        createdAt: users.createdAt,
+      })
+    return NextResponse.json({ data: user[0] })
+  } catch (e: any) {
+    if (e.message?.includes('UNIQUE constraint failed') || e.code === 'SQLITE_CONSTRAINT') {
+>>>>>>> Stashed changes
       return NextResponse.json({ error: 'Email já cadastrado' }, { status: 409 })
     }
+    console.error('Erro ao atualizar usuário:', e)
     return NextResponse.json({ error: 'Erro ao atualizar usuário' }, { status: 500 })
   }
 }
@@ -82,9 +119,15 @@ export async function DELETE(
 
   try {
     const { id } = await params
+<<<<<<< Updated upstream
     await db.prepare('DELETE FROM users WHERE id = ?').bind(id).run()
+=======
+    const db = getDb()
+    await db.delete(users).where(eq(users.id, id))
+>>>>>>> Stashed changes
     return NextResponse.json({ ok: true })
   } catch (e: any) {
+    console.error('Erro ao remover usuário:', e)
     return NextResponse.json({ error: 'Erro ao remover usuário' }, { status: 500 })
   }
 }

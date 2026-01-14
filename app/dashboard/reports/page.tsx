@@ -57,7 +57,7 @@ export default function ReportsPage() {
     try {
       const response = await fetch('/api/reports')
       if (response.ok) {
-        const data = await response.json()
+        const data: any = await response.json()
         setReportData(data)
         setTechnicians(data.metadata.technicians)
         setClients(data.metadata.clients)
@@ -86,7 +86,7 @@ export default function ReportsPage() {
         throw new Error('Erro ao gerar relatório')
       }
       
-      const data = await response.json()
+      const data: any = await response.json()
       setReportData(data)
     } catch (error) {
       setError('Erro ao gerar relatório. Tente novamente.')

@@ -135,7 +135,7 @@ export default function EditServiceOrderPage() {
         }
         throw new Error('Erro ao carregar ordem de serviço')
       }
-      const data = await res.json()
+      const data: any = await res.json()
       setServiceOrder(data)
       setFormData({
         clientId: data.clientId,
@@ -179,7 +179,7 @@ export default function EditServiceOrderPage() {
         }
         throw new Error('Erro ao carregar clientes')
       }
-      const data = await res.json()
+      const data: any = await res.json()
       setClients(data.clients || data)
     } catch (err) {
       console.error(err)
@@ -196,7 +196,7 @@ export default function EditServiceOrderPage() {
         }
         throw new Error('Erro ao carregar técnicos')
       }
-      const data = await res.json()
+      const data: any = await res.json()
       setTechnicians(data.technicians || data)
     } catch (err) {
       console.error(err)
@@ -259,7 +259,7 @@ export default function EditServiceOrderPage() {
           router.push('/login')
           return
         }
-        const errorData = await response.json().catch(() => null)
+        const errorData: any = await response.json().catch(() => null)
         throw new Error(errorData?.error || 'Erro ao atualizar ordem de serviço')
       }
 
