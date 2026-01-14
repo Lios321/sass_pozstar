@@ -3,6 +3,8 @@ import { authOptions } from '@/lib/auth-options'
 import { redirect } from 'next/navigation'
 import UsersClient from './UsersClient'
 
+export const runtime = 'edge'
+
 export default async function UsersPage() {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')

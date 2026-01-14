@@ -1,5 +1,7 @@
 import React from "react"
 
+export const runtime = 'edge'
+
 async function fetchItems() {
   const res = await fetch(`/api/opening-queue`, { cache: "no-store" })
   const data: any = await res.json().catch(() => ({ ok: false }))
