@@ -1,9 +1,40 @@
 import { validationError, notFound } from '../utils/errors'
-import { serviceOrderSchema } from '../validation/serviceOrdersSchemas'
 import { serviceOrdersRepository } from '../repositories/serviceOrdersRepository'
 import { getDb } from '@/lib/db/drizzle'
 import { clients, technicians } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+
+const budgetItemSchema = z.object({
+  type: z.enum(['PECA', 'SERVICO']),
+  title: z.string(),
+  quantity: z.number(),
+  unitCost: z.number(),
+  unitPrice: z.number(),
+  estimatedHours: z.number(),
+})
+
+const serviceOrderSchema = z.object({
+  clientId: z.string().min(1),
+  technicianId: z.string().min(1).optional().nullable(),
+  equipmentType: z.string().min(1),
+  brand: z.string().optional(),
+  model: z.string().optional(),
+  serialNumber: z.string().optional().nullable(),
+  status: z.string().optional(),
+  reportedDefect: z.string().min(1),
+  receivedAccessories: z.string().optional().nullable(),
+  budgetNote: z.string().optional().nullable(),
+  technicalExplanation: z.string().optional().nullable(),
+  arrivalDate: z.union([z.string(), z.date()]).optional().nullable(),
+  openingDate: z.union([z.string(), z.date()]).optional().nullable(),
+  completionDate: z.union([z.string(), z.date()]).optional().nullable(),
+  deliveryDate: z.union([z.string(), z.date()]).optional().nullable(),
+  paymentDate: z.union([z.string(), z.date()]).optional().nullable(),
+  price: z.number().optional().nullable(),
+  cost: z.number().optional().nullable(),
+  budgetItems: z.array(budgetItemSchema).optional().nullable(),
+})
 
 /**
  * Serviço de regras de negócio para Ordens de Serviço

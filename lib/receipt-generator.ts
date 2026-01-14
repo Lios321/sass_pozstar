@@ -1,9 +1,4 @@
 import PDFDocument from 'pdfkit';
-<<<<<<< Updated upstream
-=======
-// import * as fs from 'fs'; // Removed for Edge compatibility
-// import * as path from 'path'; // Removed for Edge compatibility
->>>>>>> Stashed changes
 import QRCode from 'qrcode';
 
 interface ServiceOrderData {
@@ -192,36 +187,13 @@ Comprovante digital emitido automaticamente pelo sistema Pozstar — validade ju
     const logoX = left + logoMarginLeft;
     const logoY = yPosition + logoMarginTop;
     
-<<<<<<< Updated upstream
-    // Fallback visual (sem acesso ao sistema de arquivos no Edge)
-=======
     // Fallback visual (Edge compatible - no filesystem access)
->>>>>>> Stashed changes
     doc.rect(logoX, logoY, logoBox, logoBox)
         .fillColor(this.COLORS.accent)
         .fill();
     doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(32)
         .text('P', logoX + (logoBox / 2) - 10, logoY + (logoBox / 2) - 14);
-<<<<<<< Updated upstream
-=======
 
-    /* 
-    // Disabled for Edge compatibility - cannot read from filesystem
-    try {
-      const logoPath = path.join(process.cwd(), 'public', 'logo.png');
-      const logoBuffer = fs.readFileSync(logoPath);
-      // Preserva proporção: ajusta a imagem para caber dentro de 90x90 sem distorcer
-      doc.image(logoBuffer, logoX, logoY, { fit: [logoBox, logoBox] });
-    } catch {
-      // Fallback visual caso a imagem não seja carregada
-      doc.rect(logoX, logoY, logoBox, logoBox)
-         .fillColor(this.COLORS.accent)
-         .fill();
-      doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(32)
-         .text('P', logoX + (logoBox / 2) - 10, logoY + (logoBox / 2) - 14);
-    }
-    */
->>>>>>> Stashed changes
 
     // Nome da empresa à direita (maiúsculas) — centralizado verticalmente ao logo
     const textLeft = logoX + logoBox + 12;

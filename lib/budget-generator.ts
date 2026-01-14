@@ -61,36 +61,26 @@ export class BudgetGenerator {
 
   private static readonly TERMS = `1. Identificação da Empresa\n
 A POZSTAR REPAROS ELETRÔNICOS, doravante denominada "Prestadora", atua no segmento de manutenção e reparação de equipamentos eletrônicos, comprometendo-se com a transparência, segurança e qualidade em todos os serviços prestados.\n
-
 2. Objeto do Orçamento\n
 O presente orçamento tem por finalidade informar ao Cliente o custo estimado para diagnóstico, reparo, substituição de peças e demais serviços técnicos necessários para o bom funcionamento do equipamento entregue.\n
-
 3. Validade do Orçamento\n
 O orçamento emitido possui validade de 15 (quinze) dias corridos a partir da data de emissão. Após esse período, valores e prazos poderão ser reajustados conforme variações de mercado ou disponibilidade de peças.\n
-
 4. Aprovação do Serviço\n
 O serviço somente será executado mediante aprovação expressa do Cliente, verbalmente, por escrito ou via meio eletrônico.\n
 Caso o orçamento não seja aprovado, o equipamento será devolvido ao Cliente nas mesmas condições em que foi recebido, podendo haver cobrança de taxa de diagnóstico técnico, conforme tabela vigente.\n
-
 5. Prazos de Execução\n
 O prazo estimado para conclusão do serviço será informado após a aprovação do orçamento, podendo variar conforme a complexidade do reparo e disponibilidade de peças. A Prestadora compromete-se a manter o Cliente informado sobre eventuais atrasos ou alterações.\n
-
 6. Garantia dos Serviços\n
 Os serviços realizados possuem garantia de 90 (noventa) dias a contar da data da retirada do equipamento, conforme o Código de Defesa do Consumidor (Lei nº 8.078/90).\n
 A garantia cobre somente o serviço executado e as peças substituídas, não abrangendo danos decorrentes de mau uso, quedas, umidade, ligações elétricas inadequadas ou intervenção de terceiros.\n
-
 7. Responsabilidade sobre Dados e Acessórios\n
 A Prestadora não se responsabiliza por perda de dados, configurações, programas, arquivos pessoais, cartões de memória, cabos, controles ou quaisquer acessórios não listados na ficha de recebimento do equipamento.\n
-
 8. Equipamentos Não Retirados\n
 Equipamentos não retirados em até 90 (noventa) dias após a conclusão do serviço ou após a recusa do orçamento poderão ser considerados abandonados, sendo destinados ao descarte ou aproveitamento técnico, conforme previsto em lei.\n
-
 9. Autorização Parcial de Reparo (opcional)\n
 O Cliente poderá autorizar previamente reparos de até R$ _______ (valor máximo) sem necessidade de novo contato para aprovação. Serviços acima desse valor dependerão de nova autorização.\n
-
 10. Registro Fotográfico e Diagnóstico\n
 A Prestadora poderá realizar registros fotográficos do equipamento antes, durante e após o reparo, exclusivamente para fins técnicos e comprobatórios, garantindo o sigilo e uso interno dessas imagens.\n
-
 11. Disposições Finais\n
 Ao aprovar este orçamento, o Cliente declara estar ciente e de acordo com todos os termos acima descritos.\n
 Qualquer situação não prevista neste documento será analisada conforme o Código de Defesa do Consumidor e demais legislações aplicáveis.`;
@@ -176,36 +166,13 @@ Qualquer situação não prevista neste documento será analisada conforme o Có
     const logoSize = 90;
     const logoX = left + 25;
     const logoY = y + 20;
-<<<<<<< Updated upstream
-    
-    // Fallback visual (sem acesso ao sistema de arquivos no Edge)
-=======
 
     // Fallback visual (Edge compatible - no filesystem access)
->>>>>>> Stashed changes
     doc.rect(logoX, logoY, logoSize, logoSize)
       .fillColor(this.COLORS.accent)
       .fill();
     doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(32)
       .text('P', logoX + (logoSize / 2) - 10, logoY + (logoSize / 2) - 14);
-<<<<<<< Updated upstream
-=======
-
-    /*
-    // Disabled for Edge compatibility - cannot read from filesystem
-    try {
-      const logoPath = path.join(process.cwd(), 'public', 'logo.png');
-      const logoBuffer = fs.readFileSync(logoPath);
-      doc.image(logoBuffer, logoX, logoY, { fit: [logoSize, logoSize] });
-    } catch {
-      doc.rect(logoX, logoY, logoSize, logoSize)
-        .fillColor(this.COLORS.accent)
-        .fill();
-      doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(32)
-        .text('P', logoX + (logoSize / 2) - 10, logoY + (logoSize / 2) - 14);
-    }
-    */
->>>>>>> Stashed changes
 
     // Nome da empresa à direita (estilo do recibo)
     const textLeft = logoX + logoSize + 12;
@@ -496,43 +463,44 @@ Qualquer situação não prevista neste documento será analisada conforme o Có
     const left = doc.page.margins.left;
     const right = doc.page.width - doc.page.margins.right;
     const width = right - left;
-    const footerY = pageHeight - doc.page.margins.bottom - 90;
+    const footerTop = pageHeight - 50;
 
-    // Linha separadora
-    doc.strokeColor(this.COLORS.divider).lineWidth(0.6)
-      .moveTo(left, footerY)
-      .lineTo(right, footerY)
-      .stroke();
+    doc.moveTo(left, footerTop).lineTo(right, footerTop)
+      .strokeColor(this.COLORS.divider).lineWidth(0.6).stroke();
 
-    // Texto centralizado
-    doc.fillColor('#666666').font('Helvetica').fontSize(9)
-      .text('Orçamento técnico emitido automaticamente pelo sistema Pozstar — validade 15 dias.', left, footerY + 10, { width, align: 'center' });
+    const footerY = footerTop + 10;
+    doc.fillColor(this.COLORS.secondaryText).font('Helvetica').fontSize(8);
 
-    // Metadados à esquerda
-    const nowFooter = new Date();
-    doc.fillColor(this.COLORS.secondaryText).fontSize(9)
-      .text(`ID da OS: ${id}`, left, footerY + 28)
-      .text(`Data/hora de emissão: ${nowFooter.toLocaleDateString('pt-BR')} ${nowFooter.toLocaleTimeString('pt-BR')}`, left, footerY + 42)
-      .text(`Versão do template: v${this.TEMPLATE_VERSION}`, left, footerY + 56);
+    doc.text('Pozstar Reparos Eletrônicos', left, footerY);
+    doc.text('CNPJ: 58.330.686/0001-52', left, footerY + 10);
+    doc.text('Rua Sete de Setembro, 240, Sala 04, Centro, Videira - SC', left, footerY + 20);
 
-    // QR Code
-    try {
-      const data = qrCodeDataURL.replace(/^data:image\/png;base64,/, '');
-      const imageBuffer = Buffer.from(data, 'base64');
-      const imgSize = 57;
-      doc.image(imageBuffer, right - imgSize, footerY + 28, { width: imgSize, height: imgSize });
-    } catch {}
+    doc.text('Contato: (49) 99165-2268', left + 200, footerY);
+    doc.text('Email: contato@pozstar.com.br', left + 200, footerY + 10);
+    doc.text('Site: www.pozstar.com.br', left + 200, footerY + 20);
+
+    if (qrCodeDataURL) {
+      doc.image(qrCodeDataURL, right - 40, footerY - 5, { width: 40 });
+    }
   }
 
   private static async buildPDF(doc: any, data: BudgetData, qrCodeDataURL: string) {
-    let y = doc.page.margins.top;
-
+    let y = 71; // margem top inicial
     y = this.addHeader(doc, y);
     y = this.addSubtitle(doc, data.orderNumber, y);
+    y += 20;
     y = this.addClientSection(doc, data.client, y);
     y = this.addEquipmentSection(doc, data, y);
+    y += 10;
     y = this.addItemsTable(doc, data.items, y);
+    y += 10;
     y = this.addNotesAndTerms(doc, data.budgetNote, y);
-    this.addFooter(doc, qrCodeDataURL, data.id);
+
+    // Rodapé em todas as páginas
+    const range = doc.bufferedPageRange();
+    for (let i = 0; i < range.count; i++) {
+      doc.switchToPage(i);
+      this.addFooter(doc, qrCodeDataURL, data.id);
+    }
   }
 }
