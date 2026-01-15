@@ -78,24 +78,24 @@ export default function DashboardLayout({
         `}
       >
         <div className="flex h-full flex-col">
-          <div className={`flex items-center ${isCollapsed ? 'justify-between px-2' : 'justify-between px-6'} h-16 border-b border-border/30 bg-card dark:bg-gradient-to-r dark:from-primary/20 dark:via-primary/15 dark:to-primary/10 backdrop-blur-sm`}>
+          <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between px-6'} h-16 border-b border-border/30 bg-card dark:bg-gradient-to-r dark:from-primary/20 dark:via-primary/15 dark:to-primary/10 backdrop-blur-sm`}>
             {isCollapsed ? (
-              <>
-                <Image src="/favicon.ico" alt="Pozstar" width={32} height={32} priority />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="hidden lg:flex hover:bg-primary/20 transition-all duration-300"
-                  onClick={() => setIsCollapsed(false)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </>
+              <div 
+                className="relative h-8 w-8 cursor-pointer hover:scale-110 transition-transform"
+                onClick={() => setIsCollapsed(false)}
+              >
+                <Image src="/logo.png?v=2" alt="Pozstar" fill className="object-contain" priority />
+              </div>
             ) : (
               <>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent">
-                  Pozstar
-                </h1>
+                <div className="flex items-center gap-2">
+                  <div className="relative h-8 w-8">
+                    <Image src="/logo.png?v=2" alt="Pozstar" fill className="object-contain" priority />
+                  </div>
+                  <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent">
+                    Pozstar
+                  </h1>
+                </div>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="ghost"
