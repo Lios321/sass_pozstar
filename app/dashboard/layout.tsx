@@ -11,11 +11,9 @@ import {
   Users, 
   Wrench, 
   ClipboardList, 
-  FileText, 
-  Menu,
+  FileText,
   X,
-  ChevronLeft,
-  ChevronRight
+  ChevronLeft
 } from 'lucide-react';
 
 const navigation = [
