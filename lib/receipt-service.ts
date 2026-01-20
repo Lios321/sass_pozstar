@@ -2,6 +2,7 @@ import { prisma } from './prisma';
 import { ReceiptDeliveryMethod } from '@prisma/client';
 import { ReceiptGenerator } from './receipt-generator';
 import type { BudgetItem } from './budget-generator';
+import { ExitReceiptGenerator, type ExitReceiptItem } from './exit-receipt-generator';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -411,6 +412,78 @@ export class ReceiptService {
       };
     } catch (error) {
       console.error(`❌ Erro ao buscar orçamento para download - OS ${serviceOrderId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Gera o comprovante de saída (entrega/garantia) para download
+   */
+  static async getExitReceiptForDownload(serviceOrderId: string): Promise<{ buffer: Buffer; filename: string } | null> {
+    try {
+      console.log(`📥 Buscando comprovante de saída para download - OS: ${serviceOrderId}`);
+
+      const so = await this.getServiceOrderWithRelations(serviceOrderId);
+      if (!so) return null;
+
+      // Normalizar itens (serviços realizados)
+      const rawItems = Array.isArray(so.budgetItems) ? so.budgetItems : [];
+      const items: ExitReceiptItem[] = rawItems.map((i: any): ExitReceiptItem => ({
+        type: i?.type === 'SERVICO' ? 'SERVICO' : 'PECA',
+        title: String(i?.title ?? ''),
+        quantity: Number(i?.quantity ?? 0),
+        unitCost: i?.unitCost != null ? Number(i.unitCost) : undefined,
+        unitPrice: Number(i?.unitPrice ?? 0),
+        estimatedHours: i?.estimatedHours != null ? Number(i.estimatedHours) : undefined,
+      }));
+
+      // Buscar datas específicas
+      // Precisamos fazer uma query extra ou ajustar a interface ServiceOrderWithRelations se completionDate/deliveryDate não estiverem lá
+      // A interface atual em receipt-service.ts NÃO tem completionDate/deliveryDate.
+      // Vamos buscar a OS completa do prisma aqui para garantir as datas
+      const soDates = await prisma.serviceOrder.findUnique({
+        where: { id: serviceOrderId },
+        select: { completionDate: true, deliveryDate: true }
+      });
+
+      const finishedAt = soDates?.deliveryDate || soDates?.completionDate || new Date();
+
+      const receiptMetadata = await ExitReceiptGenerator.generateExitReceipt({
+        id: so.id,
+        orderNumber: so.orderNumber,
+        client: {
+          name: so.client.name,
+          phone: so.client.phone,
+          email: so.client.email || undefined,
+          document: so.client.document || undefined,
+          address: so.client.address || undefined,
+          city: so.client.city || undefined,
+          state: so.client.state || undefined,
+          zipCode: so.client.zipCode || undefined,
+          complement: so.client.complement || undefined,
+          neighborhood: so.client.address?.split(',')[1]?.trim() || undefined, // Tentativa simples de extrair bairro se não estiver separado
+        },
+        equipmentType: so.equipmentType,
+        brand: so.brand,
+        model: so.model,
+        serialNumber: so.serialNumber || undefined,
+        color: so.color || undefined,
+        reportedDefect: so.reportedDefect,
+        technicalExplanation: so.technicalExplanation || undefined,
+        items,
+        createdAt: so.createdAt,
+        finishedAt: finishedAt,
+      });
+
+      console.log(`✅ Comprovante de saída gerado para download - OS: ${serviceOrderId}`);
+      console.log(`📊 Tamanho: ${receiptMetadata.size} bytes`);
+
+      return {
+        buffer: receiptMetadata.buffer,
+        filename: receiptMetadata.filename,
+      };
+    } catch (error) {
+      console.error(`❌ Erro ao buscar comprovante de saída para download - OS ${serviceOrderId}:`, error);
       throw error;
     }
   }

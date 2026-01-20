@@ -109,7 +109,7 @@ export default function ServiceOrderDetailsPage() {
           try {
             if (contentType.includes('application/json')) {
               const data = await response.json()
-              errorMessage = data?.error || errorMessage
+              errorMessage = data?.reason || data?.error || errorMessage
             } else {
               const text = await response.text()
               errorMessage = text || errorMessage
@@ -187,6 +187,52 @@ export default function ServiceOrderDetailsPage() {
       toast.error('Erro ao baixar orçamento')
     }
   }
+
+  // Novo: download do comprovante de saída
+  const handleDownloadExitReceipt = async () => {
+    try {
+      const response = await fetch(`/api/service-orders/${params.id}/exit-receipt`, {
+        credentials: 'include',
+      })
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type') || ''
+        let errorMessage = 'Erro ao baixar comprovante de saída'
+        if (response.status === 401) {
+          errorMessage = 'Sessão expirada ou não autorizada. Faça login novamente.'
+        } else {
+          try {
+            if (contentType.includes('application/json')) {
+              const data = await response.json()
+              errorMessage = data?.error || data?.reason || errorMessage
+            } else {
+              const text = await response.text()
+              errorMessage = text || errorMessage
+            }
+          } catch (_) {}
+        }
+        console.error('Download de saída falhou:', response.status, errorMessage)
+        toast.error(errorMessage)
+        return
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.style.display = 'none'
+      a.href = url
+      a.download = `saida-os-${serviceOrder?.orderNumber || 'unknown'}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast.success('Comprovante de saída baixado com sucesso!')
+    } catch (error) {
+      console.error('Erro ao baixar comprovante de saída:', error)
+      toast.error('Erro ao baixar comprovante de saída')
+    }
+  }
+
   const handleResendReceipt = async (method: 'EMAIL' | 'WHATSAPP' | 'BOTH') => {
     setIsResending(true)
     try {
@@ -483,6 +529,27 @@ export default function ServiceOrderDetailsPage() {
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Baixar comprovante de orçamento
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Comprovante de Saída (Termo de Garantia) */}
+          {(serviceOrder.status === 'TERMINADO' || serviceOrder.status === 'DEVOLVER' || serviceOrder.status === 'DEVOLVIDO' || serviceOrder.status === 'ESPERANDO_CLIENTE') && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Termo de Garantia / Saída
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button 
+                  onClick={handleDownloadExitReceipt}
+                  className="w-full"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Baixar termo de saída
                 </Button>
               </CardContent>
             </Card>
